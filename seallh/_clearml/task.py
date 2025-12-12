@@ -5,7 +5,7 @@ from clearml import Task
 from omegaconf import DictConfig
 
 
-logger = logging.getLogger("cpplhy._clearml.task")
+logger = logging.getLogger("seallh._clearml.task")
 
 
 class ClearMLTask:

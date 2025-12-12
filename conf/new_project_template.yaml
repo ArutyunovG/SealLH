@@ -56,3 +56,25 @@ project_name: my_new_project
 # =============================================================================
 # Any additional project-specific configurations can go here
 # They will override anything from defaults.yaml (without the + prefix)
+
+# =============================================================================
+# EXTERNAL REPOSITORIES (optional)
+# =============================================================================
+# Use `external_repos` to declare external repositories this project depends on.
+# The repo manager will clone/update and optionally install them.
+# Precedence for where repos are placed: explicit `repos_dir` -> `SEALLH_EXTERNAL_REPOS_DIR` env var
+# -> `external_repos.repos_dir` in this config -> ./external_repos
+#
+# Example:
+# external_repos:
+#       name: "repo_name"          # unique name for the repo
+#       url: "https://github.com/owner/repo.git"
+#       branch: "main"                # optional: branch to checkout (possible if tag is not provided)
+#       tag: "v1.2.3"                 # optional: specific tag to checkout (possible if branch is not provided)
+#       install_method: "pip_editable" # one of: pip_editable | pip | none
+#
+# Notes:
+# - `pip_editable` runs `pip install -e /path/to/repo` so code changes apply immediately.
+# - `pip` runs a normal `pip install /path/to/repo`.
+# - `none` skips installation (useful if repo is used only at runtime via PYTHONPATH).
+

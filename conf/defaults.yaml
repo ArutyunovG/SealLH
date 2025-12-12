@@ -13,6 +13,11 @@ phases:
 # Python logging configuration
 log_level: INFO
 
+# External repositories (empty by default, can be overridden per project)
+external_repos: []
+# Directory to clone external repositories into
+external_repos_dir: ./external_repos
+
 # Hydra configuration - output management  
 hydra:
   job:

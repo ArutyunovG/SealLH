@@ -1,5 +1,5 @@
 import os
-from typing import Callable, List, Optional, Tuple
+from typing import List, Tuple
 
 import cv2
 import numpy as np

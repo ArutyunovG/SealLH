@@ -7,6 +7,7 @@ from seallh.experiment.setup_logging import setup_logging
 from seallh.experiment.run_training import run_training
 from seallh.experiment.run_testing import run_testing
 from seallh.experiment.run_export import run_export
+from seallh.experiment.external_repository_setuper import setup_repositories
 from seallh.experiment.prepare_clearml_datasets import prepare_clearml_datasets
 from seallh._clearml.task import ClearMLTask
 
@@ -32,6 +33,11 @@ def experiment_main(cfg: DictConfig) -> None:
    
     # Initialize ClearML Task with the full config (clearml.yaml is merged into root)
     clearml_task = ClearMLTask(clearml_config=cfg.clearml)
+
+    # Set up external repositories (clone and install dependencies)
+    external_repositories = setup_repositories(cfg)
+    if external_repositories:
+        logger.info(f"External repositories ready: {list(external_repositories.keys())}")
 
     # Prepare datasets from ClearML dataset configurations
     created_datasets = prepare_clearml_datasets(cfg)

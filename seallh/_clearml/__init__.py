@@ -3,7 +3,7 @@ import os
 import socket
 from urllib.parse import urlparse
 
-logger = logging.getLogger("cpplhy._clearml")
+logger = logging.getLogger("seallh._clearml")
 
 def __collect_remote_clearml_info() -> None:
 
