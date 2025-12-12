@@ -3,9 +3,9 @@ import logging
 import pytorch_lightning as pl
 import os
 
-from cl_pl_hy.experiment.setup_dataloaders import setup_dataloaders
-from cl_pl_hy.experiment.utils import import_class
-from cl_pl_hy._pytorch_lightning.lit_model import LitModel
+from seallh.experiment.setup_dataloaders import setup_dataloaders
+from seallh.experiment.utils import import_class
+from seallh._pytorch_lightning.lit_model import LitModel
 
 
 def run_testing(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):

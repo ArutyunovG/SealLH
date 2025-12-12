@@ -1,4 +1,3 @@
-# c_pl_hy/_clearml/dataset.py
 from __future__ import annotations
 import os
 import shutil
@@ -158,4 +157,3 @@ class ClearMLDataset:
             raise KeyError(f"Dataset '{dataset_name}' not found. Available: {list(self.dataset_info.keys())}")
         return self.dataset_info[dataset_name]
     
-

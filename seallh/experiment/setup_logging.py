@@ -3,7 +3,7 @@ import os
 
 from omegaconf import DictConfig
 from typing import Optional, List, Any
-from cl_pl_hy.experiment.utils import import_class
+from seallh.experiment.utils import import_class
 
 
 def setup_logging(cfg: DictConfig) -> Optional[List[Any]]:

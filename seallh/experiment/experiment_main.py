@@ -3,12 +3,12 @@ import logging
 import os
 import pytorch_lightning as pl
 
-from cl_pl_hy.experiment.setup_logging import setup_logging
-from cl_pl_hy.experiment.run_training import run_training
-from cl_pl_hy.experiment.run_testing import run_testing
-from cl_pl_hy.experiment.run_export import run_export
-from cl_pl_hy.experiment.prepare_clearml_datasets import prepare_clearml_datasets
-from cl_pl_hy._clearml.task import ClearMLTask
+from seallh.experiment.setup_logging import setup_logging
+from seallh.experiment.run_training import run_training
+from seallh.experiment.run_testing import run_testing
+from seallh.experiment.run_export import run_export
+from seallh.experiment.prepare_clearml_datasets import prepare_clearml_datasets
+from seallh._clearml.task import ClearMLTask
 
 
 def experiment_main(cfg: DictConfig) -> None:

@@ -1,6 +1,3 @@
-"""
-DataLoader setup functionality for experiments.
-"""
 import logging
 from torch.utils.data import DataLoader
 

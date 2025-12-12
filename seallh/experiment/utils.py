@@ -1,6 +1,3 @@
-"""
-Utility functions for experiments.
-"""
 import importlib
 
 

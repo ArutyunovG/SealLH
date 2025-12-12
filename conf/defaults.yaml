@@ -19,13 +19,13 @@ hydra:
     chdir: false  # Don't change working directory - let PyTorch Lightning handle paths
   output_subdir: null  # Don't create .hydra subdirectory
   run:
-    dir: ${oc.env:CPPLHY_OUT,./runs}/${project_name}  # Run in project-specific output directory
+    dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}  # Run in project-specific output directory (SEALLH_ preferred)
 
 # PyTorch Lightning Logger configuration (generic TensorBoard setup)
 pl_logger:
   - class: pytorch_lightning.loggers.TensorBoardLogger
     args:
-      save_dir: ${oc.env:CPPLHY_OUT,./runs}/${project_name}/logs
+      save_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/logs
       name: "${project_name}_experiment"
       version: null
 
@@ -66,13 +66,13 @@ trainer:
   enable_checkpointing: true
   enable_progress_bar: true
   enable_model_summary: true
-  default_root_dir: ${oc.env:CPPLHY_OUT,./runs}/${project_name}
+  default_root_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}
   
   # callbacks (generic model checkpointing)
   callbacks:
     - class: pytorch_lightning.callbacks.ModelCheckpoint
       args:
-        dirpath: ${oc.env:CPPLHY_OUT,./runs}/${project_name}/checkpoints
+        dirpath: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/checkpoints
         filename: "best"
         monitor: "val/accuracy" # Metric to monitor for best model, should be defined in metrics config
         mode: "max"
@@ -121,11 +121,11 @@ clearml:
 
   # Docker configuration for remote execution (generic ML stack)
   docker:
-    image: ${oc.env:CPPLHY_DOCKER_IMAGE,"nvidia/cuda:12.4.1-cudnn9-runtime-ubuntu22.04"}
+    image: ${oc.env:SEALLH_DOCKER_IMAGE,${oc.env:SEALLH_DOCKER_IMAGE,"nvidia/cuda:12.4.1-cudnn9-runtime-ubuntu22.04"}}
     args:
       - --gpus
       - all
-      - --shm-size=${oc.env:CPPLHY_SHM_GB,16}g
+      - --shm-size=${oc.env:SEALLH_SHM_GB,${oc.env:SEALLH_SHM_GB,16}}g
       - --ipc=host
     env:
       - PYTHONUNBUFFERED=1
@@ -167,7 +167,7 @@ export:
 
 # Output paths structure (for convenience - not used in interpolations above)
 paths:
-  output_dir: ${oc.env:CPPLHY_OUT,./runs}/${project_name}
-  checkpoint_dir: ${oc.env:CPPLHY_OUT,./runs}/${project_name}/checkpoints
-  log_dir: ${oc.env:CPPLHY_OUT,./runs}/${project_name}/logs
-  export_dir: ${oc.env:CPPLHY_OUT,./runs}/${project_name}/exports
+  output_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}
+  checkpoint_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/checkpoints
+  log_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/logs
+  export_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/exports

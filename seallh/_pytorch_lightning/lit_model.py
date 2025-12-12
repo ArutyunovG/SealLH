@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional, Callable, List, Tuple
 
 import torch
 import pytorch_lightning as pl
-from cl_pl_hy.experiment.utils import import_class
+from seallh.experiment.utils import import_class
 
 
 class LitModel(pl.LightningModule):

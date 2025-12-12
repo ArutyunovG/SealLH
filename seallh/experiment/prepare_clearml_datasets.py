@@ -1,8 +1,8 @@
 from omegaconf import DictConfig
 import logging
 
-from cl_pl_hy.experiment.utils import import_class
-from cl_pl_hy._clearml.dataset import ClearMLDataset
+from seallh.experiment.utils import import_class
+from seallh._clearml.dataset import ClearMLDataset
 
 
 def prepare_clearml_datasets(cfg: DictConfig):

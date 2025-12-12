@@ -1,6 +1,4 @@
-# c_pl_hy/_clearml/task.py
 from __future__ import annotations
-from typing import Optional
 import logging
 
 from clearml import Task

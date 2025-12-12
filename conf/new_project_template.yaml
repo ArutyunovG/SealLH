@@ -37,8 +37,8 @@ project_name: my_new_project
 # clearml:
 #   docker:
 #     env_extras:
-#       - CPPLHY_PROJECT=my_new_project
-#       - CPPLHY_CONFIG_NAME=main
+#       - SEALLH_PROJECT=my_new_project
+#       - SEALLH_CONFIG_NAME=main
 #       - PROJECT_SPECIFIC_VAR=value
 
 # Example: Add project-specific pip requirements

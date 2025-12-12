@@ -3,7 +3,7 @@ Model loading utilities for export phase.
 This module provides default model loading functionality that can be overridden by projects.
 """
 import logging
-from cl_pl_hy._pytorch_lightning.lit_model import LitModel
+from seallh._pytorch_lightning.lit_model import LitModel
 
 
 def load_model_for_export(checkpoint_path, cfg):
@@ -56,7 +56,7 @@ def get_model_loader(cfg):
         project_loader_module = f"projects.{cfg.project_name}.src.model_loader"
         logger.info(f"Attempting to import model loader from: {project_loader_module}")
         
-        from cl_pl_hy.experiment.utils import import_class
+        from seallh.experiment.utils import import_class
         project_loader = import_class(f"{project_loader_module}.load_model_for_export")
         
         logger.info("Using project-specific model loader")

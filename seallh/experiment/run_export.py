@@ -4,7 +4,7 @@ import torch
 import os
 from pathlib import Path
 
-from cl_pl_hy.experiment.model_loading import get_model_loader
+from seallh.experiment.model_loading import get_model_loader
 
 
 def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
@@ -87,7 +87,7 @@ def _export_onnx(model, dummy_input, export_dir, cfg, logger):
             dummy_input,
             onnx_path,
             export_params=onnx_cfg.get("export_params", True),
-            opset_version=onnx_cfg.get("opset_version", 14),
+            opset_version=onnx_cfg.get("opset_version", 11),
             do_constant_folding=onnx_cfg.get("do_constant_folding", True),
             input_names=["input"],
             output_names=["output"]
@@ -203,7 +203,7 @@ def _run_visualization(onnx_path, cfg, datasets_dict, logger):
         project_viz_module = f"projects.{cfg.project_name}.src.visualize_onnx"
         logger.info(f"Attempting to import visualization from: {project_viz_module}")
         
-        from cl_pl_hy.experiment.utils import import_class
+        from seallh.experiment.utils import import_class
         visualize_fn = import_class(f"{project_viz_module}.visualize_exported_model")
         
         logger.info("Running project-specific visualization...")

@@ -1,4 +1,3 @@
-
 import logging
 import os
 import socket
@@ -33,7 +32,9 @@ def __collect_remote_clearml_info() -> None:
 
 
 # auto-check at import unless explicitly skipped
-if os.getenv("CPPLHY_SKIP_CLEARML_CHECK", "0") not in ("1", "true", "True", "TRUE", "ON"):
+# Prefer new SEALLH_SKIP_CLEARML_CHECK env var, fall back to legacy CPPLHY_SKIP_CLEARML_CHECK
+skip_val = os.getenv("SEALLH_SKIP_CLEARML_CHECK", os.getenv("CPPLHY_SKIP_CLEARML_CHECK", "0"))
+if skip_val not in ("1", "true", "True", "TRUE", "ON"):
     __collect_remote_clearml_info()
 
-import cl_pl_hy._clearml.dataset
+import seallh._clearml.dataset

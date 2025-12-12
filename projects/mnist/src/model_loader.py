@@ -4,7 +4,7 @@ This demonstrates how projects can customize model loading behavior.
 """
 import logging
 import torch
-from cl_pl_hy._pytorch_lightning.lit_model import LitModel
+from seallh._pytorch_lightning.lit_model import LitModel
 
 
 def load_model_for_export(checkpoint_path, cfg):
