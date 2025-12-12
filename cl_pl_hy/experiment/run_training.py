@@ -58,6 +58,8 @@ def run_training(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
                 callbacks.append(callback_instance)
                 logger.info(f"Created callback: {callback_cfg['class']}")
     
+    # should go only to Trainer.fit() method
+    weights_only=trainer_cfg.pop("weights_only", True)
     trainer = pl.Trainer(logger=pl_logger, callbacks=callbacks if callbacks else None, **trainer_cfg)
     
     logger.info("Starting training...")
@@ -67,11 +69,13 @@ def run_training(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
         trainer.fit(
             model=model,
             train_dataloaders=train_loader,
-            val_dataloaders=val_loader
+            val_dataloaders=val_loader,
+            weights_only=weights_only
         )
     else:
         logger.info("No validation dataloader found, training without validation")
         trainer.fit(
             model=model,
-            train_dataloaders=train_loader
+            train_dataloaders=train_loader,
+            weights_only=weights_only
         )

@@ -5,3 +5,4 @@ outputs
 dataset
 datasets
 runs
+lightning_logs

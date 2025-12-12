@@ -78,10 +78,14 @@ trainer:
         mode: "max"
         save_top_k: 1          # Save only the best checkpoint
         save_last: true        # Also save the last checkpoint as "last.ckpt"
+        save_weights_only: true # If true, save only model weights (state_dict) not full checkpoint
         auto_insert_metric_name: false  # Keep filename clean
   
   # reproducibility
   deterministic: true
+
+  weights_only: true  # Save only model weights in checkpoints by default
+
 
 # Default DataLoader configuration (reasonable defaults for most experiments)
 dataloader:
@@ -156,7 +160,7 @@ export:
   
   # ONNX-specific settings
   onnx:
-    opset_version: 11
+    opset_version: 14
     do_constant_folding: true
     export_params: true
     simplify: true  # Apply ONNX model simplification using onnxsim

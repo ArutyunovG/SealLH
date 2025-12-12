@@ -3,7 +3,6 @@ Model loading utilities for export phase.
 This module provides default model loading functionality that can be overridden by projects.
 """
 import logging
-import torch
 from cl_pl_hy._pytorch_lightning.lit_model import LitModel
 
 

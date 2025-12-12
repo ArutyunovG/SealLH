@@ -3,7 +3,7 @@ import os
 import sys
 
 import hydra
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
 
 # Make the repo package importable (so pkg://cl_pl_hy.conf works)

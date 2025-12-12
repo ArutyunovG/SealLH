@@ -87,7 +87,7 @@ def _export_onnx(model, dummy_input, export_dir, cfg, logger):
             dummy_input,
             onnx_path,
             export_params=onnx_cfg.get("export_params", True),
-            opset_version=onnx_cfg.get("opset_version", 11),
+            opset_version=onnx_cfg.get("opset_version", 14),
             do_constant_folding=onnx_cfg.get("do_constant_folding", True),
             input_names=["input"],
             output_names=["output"]
