@@ -2,6 +2,8 @@
 Repository management utilities for cloning and installing external dependencies.
 """
 import subprocess
+import os
+import sys
 import logging
 from pathlib import Path
 from typing import Dict, Optional
@@ -57,7 +59,9 @@ class ExternalRepositorySetuper:
         
         for repo_config in repositories:
             try:
-                repo_name, repo_path = self._setup_single_repository(repo_config)
+                repo_name = repo_config.get("name")
+                assert repo_name, "Repository entry missing 'name' field"
+                repo_path = self._setup_single_repository(repo_config)
                 repo_paths[repo_name] = str(repo_path)
                 logger.info(f"Repository '{repo_name}' ready at: {repo_path}")
             except Exception as e:
@@ -76,7 +80,7 @@ class ExternalRepositorySetuper:
             repo_config: Repository configuration
             
         Returns:
-            Tuple of name and local path of the repository
+            Path to the local repository
         """
         repo_name = repo_config.get("name")
         assert repo_name, "Repository entry missing 'name' field"
@@ -90,7 +94,7 @@ class ExternalRepositorySetuper:
             assert bool(branch) ^ bool(tag), "Cannot specify both branch and tag for cloning"
 
         install_method = repo_config.get("install_method", None)
-        
+
         repo_path = self.repos_dir / repo_name
         
         # Clone or update repository
@@ -100,12 +104,45 @@ class ExternalRepositorySetuper:
         else:
             logger.info(f"Cloning repository '{repo_name}' from {url}")
             self._clone_repository(url, repo_path, branch, tag)
+
+        # Ensure working tree files are reset to HEAD (discard local modifications)
+        try:
+            self._git_checkout_worktree(repo_path)
+        except Exception as e:
+            logger.warning(f"Worktree checkout failed for {repo_name}: {e}")
         
-        # Install repository
+        # After clean checkout (and possible submodule update), apply project-local patch if present
+        # Patch path: <repo_root>/projects/<PROJECT>/patches/{repo_name}.patch
+        # PROJECT is taken from the SEALLH_PROJECT env var (default 'mnist'),
+        repo_root = Path(__file__).resolve().parents[2]
+        # Prefer project_name from the loaded config; fall back to SEALLH_PROJECT env var
+        project_name = self.config.get("project_name", None) or os.getenv("SEALLH_PROJECT", "mnist")
+        project_dir = (repo_root / "projects" / project_name).expanduser().resolve()
+        patches_dir = project_dir / "patches"
+        patch_path = patches_dir / f"{repo_name}.patch"
+        if patch_path.exists() and patch_path.is_file():
+            logger.info(f"Applying patch {patch_path} to repository '{repo_name}'")
+            try:
+                self._apply_patch(repo_path, patch_path)
+                logger.info(f"Patch applied to '{repo_name}' successfully")
+            except Exception as e:
+                logger.error(f"Failed to apply patch for '{repo_name}': {e}")
+                raise
+        
+        install_requirements_from_txt = bool(repo_config.get("install_requirements_from_txt", False))
+        install_requirements_from_txt_before = bool(repo_config.get("install_requirements_from_txt_before", True))
+        
+        if install_requirements_from_txt and install_requirements_from_txt_before:
+            self._install_requirements_from_txt(repo_path)
+
+        # Install repository, optionally installing requirements before/after
         if install_method:
             self._install_repository(repo_path, install_method)
+
+        if install_requirements_from_txt and (not install_requirements_from_txt_before):
+            self._install_requirements_from_txt(repo_path)
         
-        return (repo_name, repo_path)
+        return repo_path
 
 
     def _clone_repository(self, url: str, repo_path: Path, branch: str, tag: Optional[str]):
@@ -203,10 +240,58 @@ class ExternalRepositorySetuper:
             logger.info("Skipping installation (install_method: none)")
         else:
             logger.warning(f"Unknown install method: {install_method}")
+
+
+    def _install_requirements_from_txt(self, repo_path: Path):
+        """Install a requirements.txt from the repository root if present."""
+        req_path = repo_path / "requirements.txt"
+        if not req_path.exists() or not req_path.is_file():
+            logger.info(f"No requirements.txt found in {repo_path}, skipping requirements install")
+            return
+
+        install_cmd = [sys.executable, "-m", "pip", "install", "-r", str(req_path)]
+        logger.info(f"Installing requirements from {req_path}: {' '.join(install_cmd)}")
+        result = subprocess.run(install_cmd, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            raise RuntimeError(f"Failed to install requirements from {req_path}: {result.stderr}")
+
+        logger.info("Requirements installed successfully")
+
+    def _apply_patch(self, repo_path: Path, patch_path: Path):
+        """Apply a patch file to the checked-out repository using `git apply`.
+
+        The patch is applied in the repository root. Raises RuntimeError on failure.
+        """
+        apply_cmd = ["git", "apply", "--ignore-space-change", "--whitespace=fix", str(patch_path)]
+        logger.info(f"Running: {' '.join(apply_cmd)} in {repo_path}")
+        result = subprocess.run(apply_cmd, cwd=repo_path, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            raise RuntimeError(f"Failed to apply patch {patch_path}: {result.stderr}")
+
+        logger.info(f"Patch {patch_path} applied (git apply stdout): {result.stdout}")
+
+
+    def _git_checkout_worktree(self, repo_path: Path):
+        """Run `git checkout .` in the repository root to discard local changes.
+
+        This is useful before applying local patches to ensure a clean working tree.
+        """
+        checkout_cmd = ["git", "checkout", "."]
+        logger.info(f"Running: {' '.join(checkout_cmd)} in {repo_path}")
+        result = subprocess.run(checkout_cmd, cwd=repo_path, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            # warn but don't fail the whole setup — patch application may still work
+            raise RuntimeError(f"git checkout . failed: {result.stderr}")
+
+        logger.info("git checkout . completed successfully")
+
     
     def _pip_install_editable(self, repo_path: Path):
         """Install repository in editable mode using pip."""
-        install_cmd = ["pip", "install", "-e", str(repo_path)]
+        install_cmd = [sys.executable, "-m", "pip", "install", "-e", str(repo_path)]
         logger.info(f"Running: {' '.join(install_cmd)}")
         result = subprocess.run(install_cmd, capture_output=True, text=True)
         
@@ -217,7 +302,7 @@ class ExternalRepositorySetuper:
     
     def _pip_install(self, repo_path: Path):
         """Install repository using pip."""
-        install_cmd = ["pip", "install", str(repo_path)]
+        install_cmd = [sys.executable, "-m", "pip", "install", str(repo_path)]
         logger.info(f"Running: {' '.join(install_cmd)}")
         result = subprocess.run(install_cmd, capture_output=True, text=True)
         

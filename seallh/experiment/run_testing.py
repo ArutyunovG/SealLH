@@ -10,7 +10,7 @@ from seallh._pytorch_lightning.lit_model import LitModel
 
 def run_testing(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
     """Run model testing/evaluation using the best checkpoint."""
-    logger = logging.getLogger("cpplhy.experiment")
+    logger = logging.getLogger("seallh.experiment")
     
     # Create model
     logger.info("Creating Lightning model for testing...")

@@ -20,7 +20,7 @@ def load_model_for_export(checkpoint_path, cfg):
     Returns:
         torch.nn.Module: The loaded model ready for export
     """
-    logger = logging.getLogger("cpplhy.experiment.model_loading")
+    logger = logging.getLogger("seallh.experiment.model_loading")
     
     logger.info(f"Loading model from checkpoint: {checkpoint_path}")
     
@@ -49,7 +49,7 @@ def get_model_loader(cfg):
     Returns:
         callable: Model loading function
     """
-    logger = logging.getLogger("cpplhy.experiment.model_loading")
+    logger = logging.getLogger("seallh.experiment.model_loading")
     
     try:
         # Try to import project-specific model loader

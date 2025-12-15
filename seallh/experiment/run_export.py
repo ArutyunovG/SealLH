@@ -9,7 +9,7 @@ from seallh.experiment.model_loading import get_model_loader
 
 def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
     """Run model export/conversion to various formats (ONNX, TorchScript, etc.)."""
-    logger = logging.getLogger("cpplhy.experiment")
+    logger = logging.getLogger("seallh.experiment")
     
     logger.info("Starting export phase...")
     

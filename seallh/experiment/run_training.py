@@ -9,7 +9,7 @@ from seallh._pytorch_lightning.lit_model import LitModel
 
 def run_training(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
     """Run the training phase."""
-    logger = logging.getLogger("cpplhy.experiment")
+    logger = logging.getLogger("seallh.experiment")
     
     # Create model
     logger.info("Creating Lightning model...")

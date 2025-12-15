@@ -14,7 +14,7 @@ def setup_dataloaders(datasets_dict, dataloader_cfg, splits=None):
     Returns:
         Dictionary of dataloaders organized by dataset_name -> split_name -> dataloader
     """
-    logger = logging.getLogger("cpplhy.experiment.setup_dataloaders")
+    logger = logging.getLogger("seallh.experiment.setup_dataloaders")
     dataloaders = {}
     
     # If no splits specified, use all available splits

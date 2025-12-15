@@ -7,7 +7,7 @@ import logging
 from clearml import Dataset
 from omegaconf import DictConfig
 
-logger = logging.getLogger("cpplhy._clearml.dataset")
+logger = logging.getLogger("seallh._clearml.dataset")
 
 __all__ = ["ClearMLDataset"]
 

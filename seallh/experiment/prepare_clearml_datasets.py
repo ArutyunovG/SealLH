@@ -16,7 +16,7 @@ def prepare_clearml_datasets(cfg: DictConfig):
         dict: Dictionary of created datasets organized by dataset_name and split
               Format: {dataset_name: {split_name: dataset_instance, ...}, ...}
     """
-    logger = logging.getLogger("cpplhy.experiment.prepare_datasets")
+    logger = logging.getLogger("seallh.experiment.prepare_datasets")
     
     # Initialize ClearML Dataset manager
     logger.info("Initializing datasets...")

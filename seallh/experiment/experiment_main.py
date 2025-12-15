@@ -1,7 +1,5 @@
 from omegaconf import DictConfig, OmegaConf
 import logging
-import os
-import pytorch_lightning as pl
 
 from seallh.experiment.setup_logging import setup_logging
 from seallh.experiment.run_training import run_training
@@ -14,7 +12,7 @@ from seallh._clearml.task import ClearMLTask
 
 def experiment_main(cfg: DictConfig) -> None:
     """Experiment main, receives config from main.py"""
-    logger = logging.getLogger("cpplhy.experiment")
+    logger = logging.getLogger("seallh.experiment")
     logger.info("Entered experiment_main")
     pl_loggers = setup_logging(cfg)
 

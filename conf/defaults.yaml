@@ -34,6 +34,10 @@ pl_logger:
       name: "${project_name}_experiment"
       version: null
 
+# Number of training epochs 
+# -1 here is intentionally wrong, asking to specify in project config, if needed
+epochs: -1 
+
 # Default training configuration
 train:
   # Default optimizer configuration (AdamW is a good general choice)

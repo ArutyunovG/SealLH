@@ -30,7 +30,7 @@ if __name__ == "__main__":
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         handlers=[logging.StreamHandler()]  # Only console handler, no file
     )
-    logger = logging.getLogger("cpplhy.main")
+    logger = logging.getLogger("seallh.main")
 
     import seallh  as _
     logger.info("seallh imported successfully")

@@ -29,8 +29,6 @@ clearml:
     env_extras:
       - SEALLH_PROJECT=mnist
       - SEALLH_CONFIG_NAME=main
-      - SEALLH_PROJECT=mnist
-      - SEALLH_CONFIG_NAME=main
 
 # MNIST-specific overrides would go here if needed
 # (paths, log_level, hydra are now inherited from defaults.yaml)

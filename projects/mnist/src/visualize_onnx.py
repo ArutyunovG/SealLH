@@ -22,7 +22,7 @@ def visualize_exported_model(onnx_path, cfg, datasets_dict):
     Returns:
         str: Path to the generated visualization image
     """
-    logger = logging.getLogger("cpplhy.experiment.visualization")
+    logger = logging.getLogger("seallh.experiment.visualization")
     
     try:
         # Load the ONNX model

@@ -12,7 +12,7 @@ def setup_logging(cfg: DictConfig) -> Optional[List[Any]]:
     Returns:
         List of PyTorch Lightning loggers or None if no loggers configured.
     """
-    logger = logging.getLogger('cpplhy.experiment.setup_logging')
+    logger = logging.getLogger('seallh.experiment.setup_logging')
 
     # Configure Python logging based on config, with INFO as default
     log_level_str = cfg.get("log_level", "INFO").upper()
@@ -52,7 +52,7 @@ def setup_logging(cfg: DictConfig) -> Optional[List[Any]]:
     # Also configure PyTorch Lightning's internal logging
     logging.getLogger("pytorch_lightning").setLevel(log_level)
     
-    logger = logging.getLogger('cpplhy.experiment.setup_logging')  # Re-get logger after setup
+    logger = logging.getLogger('seallh.experiment.setup_logging')  # Re-get logger after setup
     logger.info(f'Log level set to: {log_level_str}')
     logger.info(f'Logging to console and file: {log_file}')
     

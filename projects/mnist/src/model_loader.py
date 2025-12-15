@@ -21,7 +21,7 @@ def load_model_for_export(checkpoint_path, cfg):
     Returns:
         torch.nn.Module: The loaded model with softmax output, ready for export
     """
-    logger = logging.getLogger("cpplhy.experiment.mnist_model_loading")
+    logger = logging.getLogger("seallh.experiment.mnist_model_loading")
     
     logger.info(f"Loading MNIST model from checkpoint: {checkpoint_path}")
     
