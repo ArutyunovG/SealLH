@@ -1,0 +1,29 @@
+hydra:
+  searchpath:
+    - pkg://conf
+
+defaults:
+  - defaults
+  - dataset
+  - _self_
+
+project_name: nanodet
+
+external_repos:
+  - name: nanodet
+    url: "https://github.com/RangiLyu/nanodet"
+    branch: "pytorch2.0"
+    install: "pip"
+    install_requirements_from_txt: true
+
+
+phases:
+  training: true
+  testing: false
+  export: false
+
+clearml:
+  docker:
+    env_extras:
+      - SEALLH_PROJECT=train
+      - SEALLH_CONFIG_NAME=main
