@@ -3,18 +3,15 @@ dataset:
     # Use adapter that wraps seallh COCODataset and exposes NanoDet BaseDataset API
     class: projects.nanodet.src.seallh_coco_to_nanodet.SeallhCOCOToNanoDetDataset
     project: open
-    name: SeallhCOCOToNanoDet
+    name: COCO
     dataset_id: null
     local_copy_dir: 'dataset/coco'
     instances:
       - split: train
         args:
-          # arguments forwarded to seallh COCODataset (images_dir, annotation_file)
-          root_dir: '${dataset.coco.local_copy_dir}'
-          annotation_file: 'instances_train2017.json'
+          split: 'train'
           images_dir: '.'
-          annotation_file: 'annotations/instances_train2017.json'
-          # NanoDet adapter parameters
+          annotation_file: 'instances_train2017.json'
           input_size: [320, 320]
           pipeline: {}
           keep_ratio: true
@@ -22,7 +19,6 @@ dataset:
           use_seg_mask: false
           use_keypoint: false
           load_mosaic: false
-          split: 'train'
           multi_scale: null
           class_names: null
       - split: validation

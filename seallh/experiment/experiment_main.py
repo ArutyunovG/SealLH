@@ -8,6 +8,8 @@ from seallh.experiment.run_export import run_export
 from seallh.experiment.external_repository_setuper import setup_repositories
 from seallh.experiment.prepare_clearml_datasets import prepare_clearml_datasets
 from seallh._clearml.task import ClearMLTask
+import importlib
+import logging
 
 
 def experiment_main(cfg: DictConfig) -> None:
@@ -51,7 +53,21 @@ def experiment_main(cfg: DictConfig) -> None:
     # Run training phase if enabled
     if phases.get("training", False):
         logger.info("=== TRAINING PHASE ===")
-        run_training(cfg, created_datasets, clearml_task, pl_loggers)
+        rt = cfg.get("run_training_func", None)
+        if rt:
+            assert isinstance(rt, str), "run_training_func must be a string with function import path"
+            try:
+                module_path, func_name = rt.rsplit(".", 1)
+                module = importlib.import_module(module_path)
+                func = getattr(module, func_name)
+                logger.info(f"Calling configured run_training_func: {rt}")
+                func(cfg, created_datasets, clearml_task, pl_loggers)
+            except Exception as e:
+                logger.exception(f"Failed to call run_training_func '{rt}'; Error: {e}")
+                raise
+        else:
+            run_training(cfg, created_datasets, clearml_task, pl_loggers)
+
         logger.info("Training phase completed!")
     else:
         logger.info("Training phase skipped")

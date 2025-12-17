@@ -13,7 +13,7 @@ external_repos:
   - name: nanodet
     url: "https://github.com/RangiLyu/nanodet"
     branch: "pytorch2.0"
-    install: "pip"
+    install_method: "pip"
     install_requirements_from_txt: true
 
 

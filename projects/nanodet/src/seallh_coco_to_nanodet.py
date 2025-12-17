@@ -52,8 +52,8 @@ class SeallhCOCOToNanoDetDataset(BaseDataset):
 
         # BaseDataset initializer expects img_path and ann_path as strings
         super().__init__(
-            str(images_dir),
-            str(annotation_file),
+            str(Path(root_dir).resolve() / images_dir),
+            str(Path(root_dir).resolve() / annotation_file),
             input_size,
             pipeline or {},
             keep_ratio=keep_ratio,
@@ -66,24 +66,18 @@ class SeallhCOCOToNanoDetDataset(BaseDataset):
         )
 
         # Instantiate seallh COCO dataset (it returns image, target) on index
-        self.seallh = SeallhCOCO(root_dir=root_dir,
-                                 split=split,
-                                 images_dir=images_dir,
-                                 split=split,
-                                 annotation_file=annotation_file)
+        self.seallh_coco = SeallhCOCO(root_dir=root_dir,
+                                      split=split,
+                                      images_dir=images_dir,
+                                      annotation_file=annotation_file)
 
         # Build id -> position map for quick lookup
         # seallh dataset exposes `image_ids` or images mapping; try both
-        if hasattr(self.seallh, "image_ids"):
-            self.id_to_pos = {int(i): p for p, i in enumerate(self.seallh.image_ids)}
-        else:
-            # fallback: seallh.images is dict id->info
-            imgs = getattr(self.seallh, "images", {})
-            self.id_to_pos = {int(i): idx for idx, i in enumerate(imgs.keys())}
+        self.id_to_pos = {int(i): p for p, i in enumerate(self.seallh_coco.image_ids)}
 
         # Build category id -> label mapping. Try to read categories from annotation file.
         try:
-            ann_path = Path(annotation_file)
+            ann_path = Path(Path(root_dir).resolve() / annotation_file)
             with open(ann_path, "r", encoding="utf-8") as f:
                 coco = json.load(f)
             categories = coco.get("categories", [])
@@ -105,13 +99,12 @@ class SeallhCOCOToNanoDetDataset(BaseDataset):
 
 
     def get_data_info(self, ann_path):
-        # Load COCO json and return list of image dicts sorted by id
         with open(ann_path, "r", encoding="utf-8") as f:
             coco = json.load(f)
         img_info = coco.get("images", [])
-        # sort by id to make behavior deterministic
         img_info = sorted(img_info, key=lambda x: int(x["id"]))
         return img_info
+
 
     def get_train_data(self, idx):
         info = self.get_per_img_info(idx)
@@ -120,7 +113,7 @@ class SeallhCOCOToNanoDetDataset(BaseDataset):
         if pos is None:
             raise IndexError(f"Image id {img_id} not found in Seallh dataset")
 
-        img, target = self.seallh[pos]
+        img, target = self.seallh_coco[pos]
 
         anns = target.get("annotations", [])
         gt_bboxes = []
@@ -177,6 +170,19 @@ class SeallhCOCOToNanoDetDataset(BaseDataset):
         meta["img"] = torch.from_numpy(meta["img"].transpose(2, 0, 1))
         return meta
 
+
     def get_val_data(self, idx):
         # For now, same behavior as train
         return self.get_train_data(idx)
+
+
+    def get_per_img_info(self, idx):
+        img_info = self.data_info[idx]
+        file_name = img_info["file_name"]
+        height = img_info["height"]
+        width = img_info["width"]
+        id = img_info["id"]
+        if not isinstance(id, int):
+            raise TypeError("Image id must be int.")
+        info = {"file_name": file_name, "height": height, "width": width, "id": id}
+        return info
