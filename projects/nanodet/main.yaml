@@ -5,6 +5,7 @@ hydra:
 defaults:
   - defaults
   - dataset
+  - training
   - _self_
 
 project_name: nanodet
@@ -16,7 +17,6 @@ external_repos:
     install_method: "pip"
     install_requirements_from_txt: true
 
-
 phases:
   training: true
   testing: false
@@ -25,5 +25,5 @@ phases:
 clearml:
   docker:
     env_extras:
-      - SEALLH_PROJECT=train
+      - SEALLH_PROJECT=nanodet
       - SEALLH_CONFIG_NAME=main

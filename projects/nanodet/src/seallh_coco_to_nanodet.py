@@ -10,6 +10,9 @@ from seallh.helpers.dataset.coco import COCODataset as SeallhCOCO
 from nanodet.data.dataset.base import BaseDataset
 
 
+from pycocotools.coco import COCO
+
+
 class SeallhCOCOToNanoDetDataset(BaseDataset):
     """Adapter that wraps a seallh COCODataset and exposes NanoDet BaseDataset API.
 
@@ -103,6 +106,8 @@ class SeallhCOCOToNanoDetDataset(BaseDataset):
             coco = json.load(f)
         img_info = coco.get("images", [])
         img_info = sorted(img_info, key=lambda x: int(x["id"]))
+        # Need this for evaluator from nanodet
+        self.coco_api = COCO(str(self.ann_path))
         return img_info
 
 

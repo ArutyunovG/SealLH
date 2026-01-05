@@ -1,0 +1,3 @@
+run_training_func: "projects.nanodet.src.run_training.run_training"
+nanodet_cfg: "projects/nanodet/src/nanodet_config.yaml"
+
