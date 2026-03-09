@@ -35,7 +35,6 @@ class ExternalRepositorySetuper:
             repos_dir = './external_repos'
 
         self.repos_dir = Path(repos_dir).expanduser().resolve()
-        self.repos_dir.mkdir(parents=True, exist_ok=True)
         
         logger.info(f"Repository manager initialized with repos_dir: {self.repos_dir}")
     
@@ -55,6 +54,8 @@ class ExternalRepositorySetuper:
             logger.info("No external repositories configured")
             return repo_paths
         
+        self.repos_dir.mkdir(parents=True, exist_ok=True)
+
         logger.info(f"Setting up {len(repositories)} external repositories...")
         
         for repo_config in repositories:

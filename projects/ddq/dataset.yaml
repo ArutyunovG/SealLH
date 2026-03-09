@@ -1,0 +1,18 @@
+dataset:
+  coco:
+    class: seallh.helpers.dataset.coco.COCODataset
+    project: open
+    name: COCO
+    dataset_id: null
+    local_copy_dir: 'datasets/COCO'
+    instances:
+      - split: train
+        args: 
+          split: train
+          images_dir: .
+          annotation_file: instances_train2017.json
+      - split: validation
+        args: 
+          split: val
+          images_dir: .
+          annotation_file: instances_val2017.json

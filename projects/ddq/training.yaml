@@ -1,0 +1,1 @@
+run_training_func: "projects.ddq.src.run_training.run_training"

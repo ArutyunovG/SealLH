@@ -1,0 +1,28 @@
+# Add defaults.yaml to the search path
+hydra:
+  searchpath:
+    - pkg://conf
+
+# Root reusable config
+defaults:
+  - defaults  # Load generic defaults from conf/defaults.yaml
+  - clearml
+  - dataset
+  - model
+  - training
+  - _self_
+
+# Project identifier (used in paths and logging)
+project_name: ddq
+
+# Experiment phases configuration for DDQ
+phases:
+  training: true     # Train the DDQ detector
+
+# Additional environment variables for robust remote execution
+clearml:
+  docker:
+    env_extras:
+      - SEALLH_PROJECT=ddq
+      - SEALLH_CONFIG_NAME=main
+

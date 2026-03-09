@@ -1,0 +1,4 @@
+# Model configuration for DDQ
+model:
+  class: projects.ddq.src.model.DDQFCN
+  args: {}

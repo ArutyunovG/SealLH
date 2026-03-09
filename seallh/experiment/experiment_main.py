@@ -1,4 +1,6 @@
 from omegaconf import DictConfig, OmegaConf
+import inspect
+import importlib
 import logging
 
 from seallh.experiment.setup_logging import setup_logging
@@ -51,7 +53,28 @@ def experiment_main(cfg: DictConfig) -> None:
     # Run training phase if enabled
     if phases.get("training", False):
         logger.info("=== TRAINING PHASE ===")
-        run_training(cfg, created_datasets, clearml_task, pl_loggers)
+        rt = cfg.get("run_training_func", None)
+        if rt:
+            assert isinstance(rt, str), "run_training_func must be a string with function import path"
+            try:
+                module_path, func_name = rt.rsplit(".", 1)
+                module = importlib.import_module(module_path)
+                func = getattr(module, func_name)
+                logger.info(f"Calling configured run_training_func: {rt}")
+                sig = inspect.signature(func)
+                num_params = len(sig.parameters)
+                all_func_params_num = 4
+                if num_params == all_func_params_num:
+                    func(cfg, created_datasets, clearml_task, pl_loggers)
+                elif num_params == all_func_params_num - 1:
+                    func(cfg, created_datasets, clearml_task)
+                else:
+                    raise RuntimeError(f"{func.__name__} must accept {all_func_params_num - 1} or {all_func_params_num} parameters, got {num_params}")
+            except Exception as e:
+                logger.exception(f"Failed to call run_training_func '{rt}'; Error: {e}")
+                raise
+        else:
+            run_training(cfg, created_datasets, clearml_task, pl_loggers)
         logger.info("Training phase completed!")
     else:
         logger.info("Training phase skipped")

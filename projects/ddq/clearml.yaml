@@ -1,0 +1,10 @@
+# DDQ-specific ClearML configuration
+clearml:
+  # DDQ project identifier
+  project_name: "sandbox/ddq"
+  
+  # Additional pip requirements for MNIST project (visualization-specific)
+  pip:
+    pip_extras:
+      - mmcv
+      - mmdet
