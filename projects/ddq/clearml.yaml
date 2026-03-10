@@ -8,3 +8,5 @@ clearml:
     pip_extras:
       - mmcv
       - mmdet
+      - timm
+

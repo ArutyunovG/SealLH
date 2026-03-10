@@ -1,4 +1,22 @@
 # Model configuration for DDQ
 model:
-  class: projects.ddq.src.model.DDQFCN
-  args: {}
+  backbone: 
+    type: "timm"
+    args:
+      model_name: "repvit_m1_0.dist_450e_in1k"
+      pretrained: true
+      features_only: true
+      out_indices: [0, 1, 2, 3]
+      pretrained_filter_fn: null
+
+  neck:
+    type: "RepFPN"
+    args:
+      in_channels: [56, 112, 224, 448]
+      out_channels: 128
+      hidden_channels: 128
+      extra_convs: false
+
+  detector: projects.ddq.src.model.DDQFCN
+  detector_args:
+    pretrained: true
