@@ -7,6 +7,7 @@ hydra:
 defaults:
   - defaults  # Load generic defaults from conf/defaults.yaml
   - clearml
+  - dataloader
   - dataset
   - model
   - training

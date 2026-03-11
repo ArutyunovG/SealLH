@@ -15,7 +15,16 @@ model:
       in_channels: [56, 112, 224, 448]
       out_channels: 128
       hidden_channels: 128
-      extra_convs: false
+
+  head:
+    type: "DDQFCNHead"
+    args:
+      num_classes: 80
+      in_channels: 128
+      feat_channels: 128
+      stacked_convs: 2
+      strides: [8, 16, 32]
+      shuffle_channels: 32
 
   detector: projects.ddq.src.model.DDQFCN
   detector_args:
