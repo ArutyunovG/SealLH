@@ -1,20 +1,14 @@
-"""
-DDQFCNHead(v1)
-
-Оригинальная DDQFCNHead голова со следующими изменениями:
-* Один бранч из stacked convolutions для регрессии и классификации (self.cls_convs и self.reg_convs -> self.convs)
-* Pyramid Shuffle - делаем один раз, а не 4, в самом начале процессинга фичей с шеи
-* Под каждый stride своя голова со своими параметрами
-"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from mmcv.cnn import ConvModule, Scale
+from mmcv.cnn import ConvModule
+from mmcv.cnn.bricks import Scale
 from mmcv.ops import batched_nms
 
-import sys
-sys.path.insert(0, '/app/submodules')
-from mmdet.core import (MlvlPointGenerator, distance2bbox, filter_scores_and_topk, select_single_mlvl)
+from mmdet.models.task_modules.prior_generators import MlvlPointGenerator
+from mmdet.structures.bbox import distance2bbox
+from mmdet.models.utils import filter_scores_and_topk
+from mmdet.models.utils import select_single_mlvl
 from mmdet.models.utils import sigmoid_geometric_mean
 
 
