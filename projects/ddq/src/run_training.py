@@ -4,7 +4,10 @@ from projects.ddq.src.head import DDQFCNHead
 
 from projects.ddq.src.setup_dataloader import setup_dataloader
 
+from seallh.experiment.utils import import_class
+
 import timm
+import torch
 
 import logging
 
@@ -50,5 +53,31 @@ def run_training(cfg, created_datasets, clearml_task):
     dataloader = setup_dataloader(cfg=cfg,
                                   created_datasets=created_datasets,
                                   split='train')
+
+    optimizer_cfg = cfg.optimizer
+    logger.info(f"Setting up optimizer from config: {optimizer_cfg}")
+    optimizer_cls = import_class(optimizer_cfg["class"])
+    parameter_groups = model.get_param_groups(wd=optimizer_cfg.args.weight_decay, 
+                                              no_decay_bn_filter_bias=optimizer_cfg.args.no_decay_bn_filter_bias)
+    del optimizer_cfg.args.no_decay_bn_filter_bias
+    optimizer = optimizer_cls(parameter_groups, **optimizer_cfg.args)
+    logger.info("Optimizer created")
+
+    scheduler_cfg = cfg.scheduler
+    cfg.max_iters = len(dataloader)
+    logger.info(f"Setting up learning rate scheduler from config {scheduler_cfg}")
+    scheduler_cls = import_class(scheduler_cfg["class"])
+    scheduler = scheduler_cls(optimizer, **scheduler_cfg.args)
+
+    if scheduler_cfg.get("warmup", None) and scheduler_cfg.warmup.enabled:
+        logger.info("Setting up warmup scheduler")
+        warmup_scheduler_cls = import_class(scheduler_cfg.warmup["class"])
+        warmup_scheduler = warmup_scheduler_cls(optimizer, **scheduler_cfg.warmup.args)
+        scheduler = torch.optim.lr_scheduler.SequentialLR(optimizer, [warmup_scheduler, scheduler], milestones=[scheduler_cfg.warmup.args.total_iters])
+        logger.info(f'Apply warmup to lr scheduler') 
+    else:
+        logger.info("No warmup scheduler used")
+
+    logger.info("Scheduler created")
 
     pass
