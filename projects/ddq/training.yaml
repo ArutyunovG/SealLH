@@ -20,7 +20,42 @@ scheduler:
     enabled: true
     class: torch.optim.lr_scheduler.LinearLR
     args:
-      start_factor: 1.0e-8
+      start_factor: 1.0e-5
       end_factor: 1.0
       total_iters: 700
 
+loss:
+  class: projects.ddq.loss.DDQLoss
+  args:
+    main_criterion:
+      class: projects.ddq.loss.AuxLoss
+      args:
+        cls:
+          type: QualityFocalLoss
+          use_sigmoid: true
+          activated: true
+          beta: 2.0
+          loss_weight: 1.0
+        bbox:
+          type: GIoULoss
+          loss_weight: 2.0
+        train_cfg:
+          assigner:
+            type: TopkHungarianAssigner
+            topk: 1
+    aux_criterion:
+      class: projects.ddq.loss.AuxLoss
+      args:
+        cls:
+          type: QualityFocalLoss
+          use_sigmoid: true
+          activated: true
+          beta: 2.0
+          loss_weight: 1.0
+        bbox:
+          type: GIoULoss
+          loss_weight: 2.0
+        train_cfg:
+          assigner:
+            type: TopkHungarianAssigner
+            topk: 8

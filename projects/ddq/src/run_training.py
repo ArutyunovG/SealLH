@@ -80,4 +80,12 @@ def run_training(cfg, created_datasets, clearml_task):
 
     logger.info("Scheduler created")
 
+    loss_cfg = cfg.loss
+    logger.info(f"Setting up loss function from config: {loss_cfg}")
+
+    loss_args = cfg.loss.args
+    loss_cls = import_class(loss_cfg["class"])
+    loss = loss_cls(**loss_args)
+    logger.info("Loss function created")
+
     pass
