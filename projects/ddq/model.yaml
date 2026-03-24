@@ -29,3 +29,11 @@ model:
   detector: projects.ddq.src.model.DDQFCN
   detector_args:
     pretrained: true
+
+
+ema:
+  class: projects.ddq.src.ema.ModelEMA
+  args:
+    decay: 0.9999
+    updates: 0
+

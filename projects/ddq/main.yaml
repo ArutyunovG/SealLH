@@ -9,8 +9,10 @@ defaults:
   - clearml
   - dataloader
   - dataset
+  - evaluator
   - model
   - training
+  - transform
   - _self_
 
 # Project identifier (used in paths and logging)
@@ -19,6 +21,15 @@ project_name: ddq
 # Experiment phases configuration for DDQ
 phases:
   training: true     # Train the DDQ detector
+
+val_epoch: 0
+
+input_shape: [480, 640]
+
+norm_mean: [ 0.485, 0.456, 0.406 ]
+norm_std: [ 0.229, 0.224, 0.225 ]
+
+channels_last: true
 
 # Additional environment variables for robust remote execution
 clearml:

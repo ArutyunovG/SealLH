@@ -1,0 +1,4 @@
+evaluator:
+  class: projects.ddq.src.evaluator.Evaluator
+  args: {}
+  
