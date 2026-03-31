@@ -62,8 +62,9 @@ def run_training(cfg, created_datasets, clearml_task):
     logger.info("Transform created")
 
     logger.info("Mapping datasets")
-    for dataset in created_datasets:
-        pass
+    for dataset_dct in created_datasets.values():
+        if 'train' in dataset_dct:
+            dataset_dct['train'] = MapDataset(dataset_dct['train'], func=transform)
     logger.info("Dataset mapping done")
 
     dataloader = setup_dataloader(cfg=cfg,
@@ -117,6 +118,7 @@ def run_training(cfg, created_datasets, clearml_task):
     logger.info("EMA model created")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    logger.info(f"Using device: {device}")
 
     model.to(device)
     model.train()
@@ -131,13 +133,14 @@ def run_training(cfg, created_datasets, clearml_task):
                                      epoch=epoch,
                                      max_epochs=cfg.epochs)
         
-        for batch in loader_bar:
+        for image, targets in loader_bar:
 
-            batch.to(device, channels_last=cfg.channels_last)
-            img, targets, meta = batch['image'], batch['bboxes'], batch['meta']
+            image = image.to(device)
+            if cfg.get("channels_last", False):
+                image = image.contiguous(memory_format=torch.channels_last)
 
-            raw_output = model(img)
-            
+            raw_output = model(image)
+
             loss_dict = loss(raw_output, targets, meta)
 
             loss = sum(loss_dict.values())

@@ -18,7 +18,7 @@ class Sequential(Transform):
             else:
                 assert isinstance(transform, DictConfig)
                 transform_cls = import_class(transform["class"])
-                self.transforms.append(transform_cls(**transform.args))
+                self.transforms.append(transform_cls(transform.args))
 
 
     def __call__(self, data: Dict) -> Dict:

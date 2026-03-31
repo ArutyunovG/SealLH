@@ -1,3 +1,5 @@
+from seallh.helpers.collate_fn import collate_fn
+
 import torch
 from torch.utils.data import ConcatDataset
 
@@ -40,7 +42,7 @@ def setup_dataloader(cfg, created_datasets, split) -> torch.utils.data.DataLoade
         batch_size=batch_size,
         num_workers=data_loader_cfg.num_workers,
         pin_memory=data_loader_cfg.pin_memory,
-        collate_fn=concat_dataset.collate_fn if hasattr(concat_dataset, "collate_fn") else None,
+        collate_fn=concat_dataset.collate_fn if hasattr(concat_dataset, "collate_fn") else collate_fn,
         shuffle=data_loader_cfg.shuffle,
         prefetch_factor=data_loader_cfg.prefetch_factor,
         persistent_workers=data_loader_cfg.persistent_workers

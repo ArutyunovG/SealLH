@@ -1,7 +1,8 @@
 from pathlib import Path
 import json
-import cv2
-import torch
+from PIL import Image
+
+import numpy as np
 from torch.utils.data import Dataset
 
 
@@ -49,16 +50,18 @@ class COCODataset(Dataset):
         img_info = self.images[img_id]
 
         img_path = self.images_dir / img_info["file_name"]
-        image = cv2.imread(str(img_path), cv2.IMREAD_COLOR)
+        image = np.array(Image.open(str(img_path)))
 
         if image is None:
             raise FileNotFoundError(f"Image not found: {img_path}")
 
         annotations = self.img_to_anns.get(img_id, [])
 
-        target = {
-            "image_id": torch.tensor(img_id),
-            "annotations": annotations,
+        data_dct = {
+            "image": image,
+            "image_id": img_id,
+            "bboxes": [ann["bbox"] for ann in annotations if "bbox" in ann],
+            "labels": [ann["category_id"] for ann in annotations if "bbox" in ann],
         }
 
-        return image, target
+        return data_dct

@@ -2,15 +2,18 @@ transform:
   class: seallh.helpers.transform.sequential.Sequential
   args:
     transforms:
-      - class: seallh.helpers.transform.resize.Resize
+      - class: seallh.helpers.transform.albumentations_transform.Resize
         args:
           height: ${get_idx:${input_shape},0}
           width: ${get_idx:${input_shape},1}
 
-      - class: seallh.helpers.transform.normalize.Normalize
+      - class: seallh.helpers.transform.albumentations_transform.Normalize
         args:
           mean: ${norm_mean}
           std: ${norm_std}
 
-      - class: seallh.helpers.transform.normalize.ToTensor
+      - class: seallh.helpers.transform.albumentations_transform.ToTensor
+        args: {}
+
+      - class: seallh.helpers.transform.AlbumentationTargetsToTensor
         args: {}
