@@ -3,7 +3,12 @@ clearml:
   # DDQ project identifier
   project_name: "sandbox/${project_name}"
   
-  # Additional pip requirements for DDQ project (visualization-specific)
+  docker:
+    env_extras:
+      - SEALLH_PROJECT=${project_name}
+      - SEALLH_CONFIG_NAME=main
+
+  # Additional pip requirements for DDQ project
   pip:
     pip_extras:
       - mmcv==2.1.0
