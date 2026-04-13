@@ -1,10 +1,25 @@
 import torch
 import torch.nn as nn
 from mmdet.models.losses import DDQAuxLoss
+from mmdet.models.task_modules.assigners import TopkHungarianAssigner
 
 from mmengine import ConfigDict
 
 from seallh.experiment.utils import import_class
+
+# Monkey-patch mmdet bug: TopkHungarianAssigner sets labels=None when no
+# predictions are matched (e.g. more GTs than queries after NMS), which
+# crashes SamplingResult. The fix: never overwrite assigned_labels with None.
+_original_assign = TopkHungarianAssigner.assign
+
+def _patched_assign(self, *args, **kwargs):
+    result = _original_assign(self, *args, **kwargs)
+    if result.labels is None:
+        num_bboxes = result.gt_inds.size(0)
+        result.labels = result.gt_inds.new_full((num_bboxes,), -1)
+    return result
+
+TopkHungarianAssigner.assign = _patched_assign
 
 
 class DDQLoss(nn.Module):
@@ -100,14 +115,18 @@ class DDQLoss(nn.Module):
 
         gt_labels = [t.to(device) for t in gt_labels]
         gt_bboxes = [t.to(device) for t in gt_bboxes]
-        main_loss_dict = self.main_criterion.loss(*main_results, gt_bboxes, gt_labels, meta_list)
 
-        loss_dict = {
-            'loss_cls': torch.stack(main_loss_dict['aux_loss_cls']).mean(),
-            'loss_bbox': torch.stack(main_loss_dict['aux_loss_bbox']).mean(),
-        }
+        main_cls_scores, _ = main_results
+        if len(main_cls_scores) == 0:
+            zero = torch.tensor(0.0, device=device, requires_grad=True)
+            loss_dict = {'loss_cls': zero, 'loss_bbox': zero}
+        else:
+            main_loss_dict = self.main_criterion.loss(*main_results, gt_bboxes, gt_labels, meta_list)
+            loss_dict = {
+                'loss_cls': torch.stack(main_loss_dict['aux_loss_cls']).mean(),
+                'loss_bbox': torch.stack(main_loss_dict['aux_loss_bbox']).mean(),
+            }
 
-        if aux_results[0] is not None:
             aux_loss_dict = self.aux_criterion.loss(*aux_results, gt_bboxes, gt_labels, meta_list)
             loss_dict['aux_loss_cls'] = torch.stack(aux_loss_dict['aux_loss_cls']).mean()
             loss_dict['aux_loss_bbox'] = torch.stack(aux_loss_dict['aux_loss_bbox']).mean()

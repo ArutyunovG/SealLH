@@ -23,9 +23,10 @@ def sigmoid_geometric_mean_export(x, y):
 
 
 class StrideHead(nn.Module):
-    def __init__(self, num_classes, in_channels, feat_channels, num_priors, stacked_convs=4):
+    def __init__(self, num_classes, in_channels, feat_channels, num_priors, stacked_convs=4, bbox_clamp=8.0):
         super(StrideHead, self).__init__()
 
+        self.bbox_clamp = bbox_clamp
         self.num_classes = num_classes
         self.in_channels = in_channels
         self.feat_channels = feat_channels
@@ -84,7 +85,7 @@ class StrideHead(nn.Module):
         else:
             cls_scores = sigmoid_geometric_mean(cls_logits, object_nesss)
 
-        bbox_preds = self.conv_reg(feat).exp()
+        bbox_preds = self.conv_reg(feat).clamp(max=self.bbox_clamp).exp()
         bbox_preds = self.scale(bbox_preds).float()
 
         main_results = (cls_scores, bbox_preds)
@@ -94,8 +95,8 @@ class StrideHead(nn.Module):
             aux_object_nesss = self.aux_conv_objectness(feat)
             aux_cls_scores = sigmoid_geometric_mean(aux_cls_logits, aux_object_nesss)
 
-            aux_bbox_preds = self.aux_conv_reg(feat)
-            aux_bbox_preds = self.aux_scale(aux_bbox_preds)
+            aux_bbox_preds = self.aux_conv_reg(feat).clamp(max=self.bbox_clamp).exp()
+            aux_bbox_preds = self.aux_scale(aux_bbox_preds).float()
 
             aux_results = (aux_cls_scores, aux_bbox_preds)
         else:
@@ -117,6 +118,7 @@ class DDQFCNHead(nn.Module):
             offset=0.5,
             num_distinct_queries=300,
             norm_cfg=None,      # todo:
+            bbox_clamp=8,
     ):
         super(DDQFCNHead, self).__init__()
 
@@ -131,7 +133,7 @@ class DDQFCNHead(nn.Module):
 
         self.stride_heads = nn.ModuleList()
         for na in self.num_base_priors:
-            head = StrideHead(self.num_classes, self.in_channels, self.feat_channels, na, self.stacked_convs)
+            head = StrideHead(self.num_classes, self.in_channels, self.feat_channels, na, self.stacked_convs, bbox_clamp=bbox_clamp)
             self.stride_heads.append(head)
 
         self.num_distinct_queries = num_distinct_queries

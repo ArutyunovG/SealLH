@@ -25,6 +25,7 @@ model:
       stacked_convs: 2
       strides: [8, 16, 32]
       shuffle_channels: 32
+      bbox_clamp: 4.0
 
   detector: projects.ddq.src.model.DDQFCN
   detector_args:

@@ -16,3 +16,111 @@ dataset:
           split: val
           images_dir: val
           annotation_file: annotations/val.json
+
+  crowd_human:
+    class: seallh.helpers.dataset.coco.COCODataset
+    project: Person
+    name: coco_common
+    dataset_id: null
+    local_copy_dir: 'datasets/Person/coco_common/crowd_human'
+    instances:
+      - split: train
+        args: 
+          split: train
+          images_dir: train
+          annotation_file: annotations/train.json
+      - split: validation
+        args: 
+          split: val
+          images_dir: val
+          annotation_file: annotations/val.json
+
+  cuhk_sysu:
+    class: seallh.helpers.dataset.coco.COCODataset
+    project: Person
+    name: coco_common
+    dataset_id: null
+    local_copy_dir: 'datasets/Person/coco_common/CUHK-SYSU'
+    instances:
+      - split: train
+        args: 
+          split: train
+          images_dir: train
+          annotation_file: annotations/train.json
+      - split: validation
+        args: 
+          split: val
+          images_dir: val
+          annotation_file: annotations/val.json
+
+  llvip:
+    class: seallh.helpers.dataset.coco.COCODataset
+    project: Person
+    name: coco_common
+    dataset_id: null
+    local_copy_dir: 'datasets/Person/coco_common/LLVIP'
+    instances:
+      - split: train
+        args: 
+          split: train
+          images_dir: train
+          annotation_file: annotations/train.json
+      - split: validation
+        args: 
+          split: val
+          images_dir: val
+          annotation_file: annotations/val.json
+
+  mot20:
+    class: seallh.helpers.dataset.coco.COCODataset
+    project: Person
+    name: coco_common
+    dataset_id: null
+    local_copy_dir: 'datasets/Person/coco_common/MOT20'
+    instances:
+      - split: train
+        args: 
+          split: train
+          images_dir: train
+          annotation_file: annotations/train.json
+      - split: validation
+        args: 
+          split: val
+          images_dir: val
+          annotation_file: annotations/val.json
+
+  stcrowd:
+    class: seallh.helpers.dataset.coco.COCODataset
+    project: Person
+    name: coco_common
+    dataset_id: null
+    local_copy_dir: 'datasets/Person/coco_common/STCrowd'
+    instances:
+      - split: train
+        args: 
+          split: train
+          images_dir: train
+          annotation_file: annotations/train.json
+      - split: validation
+        args: 
+          split: val
+          images_dir: val
+          annotation_file: annotations/val.json
+
+  thermal_roboflow:
+    class: seallh.helpers.dataset.coco.COCODataset
+    project: Person
+    name: coco_common
+    dataset_id: null
+    local_copy_dir: 'datasets/Person/coco_common/ThermalPersonDetectionRoboflow2022'
+    instances:
+      - split: train
+        args: 
+          split: train
+          images_dir: train
+          annotation_file: annotations/train.json
+      - split: validation
+        args: 
+          split: val
+          images_dir: val
+          annotation_file: annotations/val.json
