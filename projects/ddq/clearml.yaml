@@ -4,7 +4,7 @@ clearml:
   project_name: "sandbox/${project_name}"
   
   docker:
-    image: ${oc.env:SEALLH_DOCKER_IMAGE,${oc.env:SEALLH_DOCKER_IMAGE,"nvidia/cuda:12.4.1-cudnn9-runtime-ubuntu22.04"}}
+    image: "nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04"
     args:
       - --gpus
       - all
