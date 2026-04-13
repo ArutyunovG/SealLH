@@ -12,6 +12,9 @@ from mmdet.models.utils import select_single_mlvl
 from mmdet.models.utils import sigmoid_geometric_mean
 
 
+import math
+
+
 def sigmoid_geometric_mean_export(x, y):
     x_sigmoid = x.sigmoid()
     y_sigmoid = y.sigmoid()
@@ -57,6 +60,18 @@ class StrideHead(nn.Module):
         self.aux_conv_cls = nn.Conv2d(self.feat_channels, self.np * self.num_classes, 3, padding=3 // 2)
         self.aux_conv_reg = nn.Conv2d(self.feat_channels, self.np * 4, 3, padding=3 // 2)
         self.aux_scale = Scale(1.0)
+
+        self._init_cls_bias()
+
+    def _init_cls_bias(self, prior_prob=0.01):
+        """Initialize classification conv bias so initial predictions
+        start at prior_prob, preventing score collapse with QFL."""
+        bias_init = -math.log((1 - prior_prob) / prior_prob)
+        nn.init.constant_(self.conv_cls.bias, bias_init)
+        nn.init.constant_(self.aux_conv_cls.bias, bias_init)
+        # Also init objectness bias
+        nn.init.constant_(self.objectness[-1].bias, bias_init)
+        nn.init.constant_(self.aux_conv_objectness[-1].bias, bias_init)
 
     def forward(self, x):
         feat = self.conv_layers(x)

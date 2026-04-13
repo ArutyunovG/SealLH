@@ -20,16 +20,31 @@ def clip_coords(boxes, img_shape):
     boxes[:, 3].clamp_(0, img_shape[0])  # y2
 
 
-def scale_coords(bboxes, original_shape, target_shape):
+def scale_coords(bboxes, original_shape, target_shape, pad_mode='center'):
+    """
+    Rescale bounding boxes from `original_shape` to `target_shape`.
+
+    Parameters:
+    - bboxes: Tensor of shape (N,4) in xyxy format.
+    - original_shape: (height, width) of the source image.
+    - target_shape: (height, width) of the target image.
+    - pad_mode: 'center' (default) assumes padding is centered; 'top_left' assumes
+      padding was added at the bottom/right (i.e., zero pad offsets).
+    """
     h0, w0 = original_shape
     h1, w1 = target_shape
-    
+
     # scale: target -> original
-    scale_x = w0 / w1   
+    scale_x = w0 / w1
     scale_y = h0 / h1
 
     scale = min(scale_x, scale_y)
-    pad_x, pad_y = (w0 - w1 * scale) / 2, (h0 - h1 * scale) / 2
+
+    if pad_mode == 'top_left':
+        pad_x, pad_y = 0.0, 0.0
+    else:
+        pad_x, pad_y = (w0 - w1 * scale) / 2.0, (h0 - h1 * scale) / 2.0
+
     scale_x, scale_y = scale, scale
 
     # box: original -> target, box_t = (box_o - pad_o) / scale_t2o
@@ -37,7 +52,7 @@ def scale_coords(bboxes, original_shape, target_shape):
     bboxes[:, [1, 3]] -= pad_y
     bboxes[:, [0, 2]] /= scale_x
     bboxes[:, [1, 3]] /= scale_y
-    
+
     clip_coords(bboxes, target_shape)
 
     return bboxes
@@ -109,13 +124,8 @@ class Evaluator:
     _kp_metrics = ['AP', 'AP@0.5', 'AP@0.75', 'AP@m', 'AP@l', 'AR', 'AR@50', 'AR@75', 'AR@m', 'AR@l']
 
     def __init__(self):
-
-        self.metrics = {}
-
-        self.images = []
-        self.annotations = []
-        self.predictions = []
-
+        self.category_names = None
+        self.reset()
 
     @staticmethod
     def _targets_to_coco(targets, img_ids, img0_shapes):
@@ -167,11 +177,8 @@ class Evaluator:
         img0_shapes = meta_data['img0_shape']
         img1_shapes = meta_data['img1_shape']
 
-        bs = len(image_ids)
-        img1_shapes = [list(img1_shapes) for _ in range(bs)]
         if targets is None:
             raise ValueError('Targets must not be None in None ann_path mode')
-        img0_shapes = img1_shapes
 
         predictions = deepcopy(predictions)
         
@@ -179,12 +186,11 @@ class Evaluator:
         
         self.predictions.extend(coco_predictions)
 
-        if not self.ann_path:
-            coco_images, coco_annotations = self._targets_to_coco(targets, image_ids, img0_shapes)
+        coco_images, coco_annotations = self._targets_to_coco(targets, image_ids, img0_shapes)
 
-            self.images.extend(coco_images)
-            self.annotations.extend(coco_annotations)
-        
+        self.images.extend(coco_images)
+        self.annotations.extend(coco_annotations)
+
     def _reduce_state(self):
         dist.barrier()
         
@@ -203,12 +209,13 @@ class Evaluator:
         dist.barrier()
     
     def _create_coco_gt(self):
-        # init coco categories 
+        # init coco categories
+        assert self.category_names is not None, "category_names must be set before creating coco_gt"
         categories = []
-        for i in range(len(self.bb_labels)):
+        for i in range(len(self.category_names)):
             cat = {
                 'id': i,
-                'name': self.bb_labels[i],
+                'name': self.category_names[i],
                 'supercategory': None,
                 'skeleton': []
             }
@@ -278,6 +285,13 @@ class Evaluator:
         return result
 
     def reset(self):
+        self.metrics = {}
         self.predictions = []
         self.images = []
         self.annotations = []
+
+    def set_category_names(self, category_names):
+        assert isinstance(category_names, list), "category_names should be a list of category names"
+        assert len(category_names) > 0, "category_names should not be empty"
+        assert all(isinstance(name, str) for name in category_names), "All category names should be strings"
+        self.category_names = category_names

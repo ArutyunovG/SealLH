@@ -9,7 +9,7 @@ import torch
 def collate_fn(batch):
     images = torch.stack([item["image"] for item in batch])
     targets = [
-        {"bboxes": item["bboxes"], "labels": item["labels"]}
+        {k: item[k] for k in item if k != "image"}
         for item in batch
     ]
     return images, targets

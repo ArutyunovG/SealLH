@@ -11,6 +11,9 @@ def setup_dataloader(cfg, created_datasets, split) -> torch.utils.data.DataLoade
 
     logger.info(f"Concatenating {split} datasets")
 
+    if split in ['val', 'valid']:
+        split = 'validation'
+
     datasets_to_concat = []
     for dataset_name, dataset_dct in created_datasets.items():
         if split not in dataset_dct:
@@ -29,7 +32,7 @@ def setup_dataloader(cfg, created_datasets, split) -> torch.utils.data.DataLoade
 
     if split == 'train':
         data_loader_cfg = cfg.dataloader.train_args
-    elif split == 'val' or split == 'validation':
+    elif split == 'validation':
         data_loader_cfg = cfg.dataloader.val_args
     elif split == 'test':
         data_loader_cfg = cfg.dataloader.test_args

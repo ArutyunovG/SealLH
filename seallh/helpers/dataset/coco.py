@@ -16,7 +16,7 @@ class COCODataset(Dataset):
         annotation_file (str | Path): Path to COCO JSON annotations
     """
 
-    def __init__(self, root_dir, split, images_dir, annotation_file):
+    def __init__(self, root_dir, split, images_dir, annotation_file, single_image_id=None, single_image_repeat=1):
 
         self.root_dir = Path(root_dir).resolve()
 
@@ -32,12 +32,19 @@ class COCODataset(Dataset):
 
         self.images = {int(img["id"]): img for img in coco["images"]}
 
+        sorted_cats = sorted(coco["categories"], key=lambda x: int(x['id']))
+        self.cat_mapping = {int(cat["id"]): idx for idx, cat in enumerate(sorted_cats)}
+
         self.img_to_anns = {}
         for ann in coco["annotations"]:
             img_id = ann["image_id"]
             self.img_to_anns.setdefault(img_id, []).append(ann)
 
         self.image_ids = list(self.images.keys())
+
+        self.categories = [
+            cat['name'] for cat in coco["categories"]
+        ]
 
 
     def __len__(self):
@@ -50,18 +57,29 @@ class COCODataset(Dataset):
         img_info = self.images[img_id]
 
         img_path = self.images_dir / img_info["file_name"]
-        image = np.array(Image.open(str(img_path)))
+        # Ensure image has 3 channels (RGB). Some COCO images may be grayscale.
+        image = Image.open(str(img_path)).convert('RGB')
+        image = np.array(image)
 
         if image is None:
             raise FileNotFoundError(f"Image not found: {img_path}")
 
         annotations = self.img_to_anns.get(img_id, [])
 
+        h, w = image.shape[:2]
+
+        labels = []
+        for ann in annotations:
+            if "bbox" not in ann:
+                continue
+            labels.append(self.cat_mapping.get(int(ann["category_id"])))
+
         data_dct = {
             "image": image,
-            "image_id": img_id,
+            "img_id": img_id,
+            "img_shape": (h, w),
             "bboxes": [ann["bbox"] for ann in annotations if "bbox" in ann],
-            "labels": [ann["category_id"] for ann in annotations if "bbox" in ann],
+            "labels": labels,
         }
 
         return data_dct

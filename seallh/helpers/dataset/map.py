@@ -21,3 +21,7 @@ class Map(Dataset):
 
     def __getitem__(self, idx: int):
         return self.func(self.dataset[idx])
+
+
+    def __getattr__(self, name):
+        return getattr(self.dataset, name)

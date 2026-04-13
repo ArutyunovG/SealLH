@@ -55,3 +55,8 @@ class ModelEMA:
         # Update EMA attributes
         copy_attr(self.ema, model, include, exclude)
 
+    def to(self, device):
+        # Delegate device move to the underlying EMA model
+        self.ema.to(device)
+        return self
+

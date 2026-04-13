@@ -10,90 +10,6 @@ from typing import Optional
 
 logger = logging.getLogger("seallh.projects.src.ddq.model")
 
-coco_label2category = {
-    1: 1,
-    2: 2,
-    3: 3,
-    4: 4,
-    5: 5,
-    6: 6,
-    7: 7,
-    8: 8,
-    9: 9,
-    10: 10,
-    11: 11,
-    12: 13,
-    13: 14,
-    14: 15,
-    15: 16,
-    16: 17,
-    17: 18,
-    18: 19,
-    19: 20,
-    20: 21,
-    21: 22,
-    22: 23,
-    23: 24,
-    24: 25,
-    25: 27,
-    26: 28,
-    27: 31,
-    28: 32,
-    29: 33,
-    30: 34,
-    31: 35,
-    32: 36,
-    33: 37,
-    34: 38,
-    35: 39,
-    36: 40,
-    37: 41,
-    38: 42,
-    39: 43,
-    40: 44,
-    41: 46,
-    42: 47,
-    43: 48,
-    44: 49,
-    45: 50,
-    46: 51,
-    47: 52,
-    48: 53,
-    49: 54,
-    50: 55,
-    51: 56,
-    52: 57,
-    53: 58,
-    54: 59,
-    55: 60,
-    56: 61,
-    57: 62,
-    58: 63,
-    59: 64,
-    60: 65,
-    61: 67,
-    62: 70,
-    63: 72,
-    64: 73,
-    65: 74,
-    66: 75,
-    67: 76,
-    68: 77,
-    69: 78,
-    70: 79,
-    71: 80,
-    72: 81,
-    73: 82,
-    74: 84,
-    75: 85,
-    76: 86,
-    77: 87,
-    78: 88,
-    79: 89,
-    80: 90
-}
-
-
 def make_anchors(feats, strides, grid_cell_offset=0.5):
     """Generate anchors from features."""
     anchor_points, stride_tensor = [], []
@@ -107,30 +23,6 @@ def make_anchors(feats, strides, grid_cell_offset=0.5):
         anchor_points.append(torch.stack((sx, sy), -1).view(-1, 2))
         stride_tensor.append(torch.full((h * w, 1), stride, dtype=dtype, device=device))
     return torch.cat(anchor_points), torch.cat(stride_tensor)
-
-
-def get_bboxes(cls_scores, bbox_preds, img_metas=None):
-    num_classes = 80
-    num_distinct_queries = 300
-    result_list = []
-    for sinlge_score, single_bbox_pred, img_meta in zip(
-            cls_scores, bbox_preds, img_metas):
-        img_shape = img_meta['img_shape']
-        single_bbox_pred[:, 0::2].clamp_(min=0, max=img_shape[1])
-        single_bbox_pred[:, 1::2].clamp_(min=0, max=img_shape[0])
-        single_bbox_pred = single_bbox_pred / single_bbox_pred.new_tensor(
-            img_meta['scale_factor'])
-        sinlge_score = sinlge_score.flatten(0, 1)
-        num_distinct_queries = min(num_distinct_queries,
-                                   len(sinlge_score))
-        scores_per_img, topk_indices = sinlge_score.topk(
-            num_distinct_queries, sorted=True)
-        labels_per_img = topk_indices % num_classes
-        bboxes = single_bbox_pred[topk_indices // num_classes]
-        bboxes = torch.cat([bboxes, scores_per_img[:, None]], dim=1)
-
-        result_list.append((bboxes[:num_distinct_queries], labels_per_img[:num_distinct_queries]))
-    return result_list
 
 
 def bbox_decode(distance, anchor_points, dim=-1):
@@ -197,40 +89,25 @@ class DDQFCN(nn.Module):
     def get_param_groups(self, no_decay_bn_filter_bias, wd):
         return parameter_list(self.named_parameters, weight_decay=wd, no_decay_bn_filter_bias=no_decay_bn_filter_bias)
 
-    def postprocess(self, raw_output, remap_mscoco=False):
+    def postprocess(self, raw_output):
         main_result, _ = raw_output
         num_classes = self.nc
         num_distinct_queries = self.num_distinct_queries
         result_list = []
 
         cls_scores, bbox_preds = main_result
-        for sinlge_score, single_bbox_pred in zip(cls_scores, bbox_preds):
-            sinlge_score = sinlge_score.flatten(0, 1)
-            num_distinct_queries = min(num_distinct_queries,len(sinlge_score))
-            scores_per_img, topk_indices = sinlge_score.topk(num_distinct_queries, sorted=True)
+        for single_score, single_bbox_pred in zip(cls_scores, bbox_preds):
+            single_score = single_score.flatten(0, 1)
+            num_distinct_queries = min(num_distinct_queries,len(single_score))
+            scores_per_img, topk_indices = single_score.topk(num_distinct_queries, sorted=True)
 
             labels_per_img = topk_indices % num_classes
             bboxes = single_bbox_pred[topk_indices // num_classes]
             bboxes = torch.cat([bboxes, scores_per_img[:, None]], dim=1)
 
-            if remap_mscoco:
-                mapped_labels = torch.tensor([coco_label2category[int(x.item()) + 1] for x in labels_per_img.flatten()])
-                labels_per_img = mapped_labels.to(labels_per_img.device).reshape(labels_per_img.shape)
-
             result_list.append((bboxes[:num_distinct_queries], labels_per_img[:num_distinct_queries]))
 
         return result_list
-
-    def freeze_epoch(self, epoch, freeze=False):
-        backbone_epoch = self.freeze_cfg.get('backbone', None)
-        if backbone_epoch is not None and backbone_epoch['epoch'] >= epoch:
-            for p in self.backbone.parameters():
-                p.requires_grad = freeze
-
-        neck_epoch = self.freeze_cfg.get('neck', None)
-        if neck_epoch is not None and neck_epoch['epoch'] >= epoch:
-            for p in self.neck.parameters():
-                p.requires_grad = freeze
 
 
 

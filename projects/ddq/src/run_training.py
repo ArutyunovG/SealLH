@@ -15,11 +15,12 @@ import torch
 from torchmetrics import MeanMetric, MultioutputWrapper
 
 import logging
+import os
 
 logger = logging.getLogger("seallh.projects.ddq.run_training")
 
 
-def run_training(cfg, created_datasets, clearml_task):
+def run_training(cfg, created_datasets, _):
 
     """
     DDQ-specific training function
@@ -63,14 +64,21 @@ def run_training(cfg, created_datasets, clearml_task):
 
     logger.info("Mapping datasets")
     for dataset_dct in created_datasets.values():
-        if 'train' in dataset_dct:
-            dataset_dct['train'] = MapDataset(dataset_dct['train'], func=transform)
+        for split in ('train', 'validation'):
+            if split in dataset_dct:
+                dataset_dct[split] = MapDataset(dataset_dct[split], func=transform)
     logger.info("Dataset mapping done")
 
     dataloader = setup_dataloader(cfg=cfg,
                                   created_datasets=created_datasets,
                                   split='train')
 
+    val_dataloader = None
+    val_epoch = cfg.get("val_epoch", 0)
+    if val_epoch > 0:
+        val_dataloader = setup_dataloader(cfg=cfg,
+                                          created_datasets=created_datasets,
+                                          split='val')
     optimizer_cfg = cfg.optimizer
     logger.info(f"Setting up optimizer from config: {optimizer_cfg}")
     optimizer_cls = import_class(optimizer_cfg["class"])
@@ -109,6 +117,8 @@ def run_training(cfg, created_datasets, clearml_task):
     logger.info(f"Setting up evaluator from config: {evaluator_cfg}")
     evaluator_cls = import_class(evaluator_cfg["class"])
     evaluator = evaluator_cls(**evaluator_cfg.args)
+    if hasattr(evaluator, 'set_category_names'):
+        evaluator.set_category_names(list(created_datasets.values())[0]['train'].categories)
     logger.info("Evaluator created")
 
     ema_cfg = cfg.ema
@@ -121,10 +131,7 @@ def run_training(cfg, created_datasets, clearml_task):
     logger.info(f"Using device: {device}")
 
     model.to(device)
-    model.train()
-
-    loss_avg = MultioutputWrapper(base_metric=MeanMetric(),
-                                  num_outputs=loss.num_train_losses).to(device)
+    ema_model.to(device)
 
     for epoch in range(cfg.epochs):
 
@@ -133,6 +140,12 @@ def run_training(cfg, created_datasets, clearml_task):
                                      epoch=epoch,
                                      max_epochs=cfg.epochs)
         
+       
+        model.train()
+        loss_avg = MultioutputWrapper(base_metric=MeanMetric(),
+                                      num_outputs=loss.num_train_losses).to(device)
+
+
         for image, targets in loader_bar:
 
             image = image.to(device)
@@ -141,16 +154,16 @@ def run_training(cfg, created_datasets, clearml_task):
 
             raw_output = model(image)
 
-            loss_dict = loss(raw_output, targets, meta)
+            loss_dict = loss(raw_output, targets, device)
 
-            loss = sum(loss_dict.values())
+            loss_val = sum(loss_dict.values())
             loss_items = torch.stack(list(loss_dict.values()))
 
             if torch.any(torch.isnan(loss_items)):
                 logger.error('Nan Loss encountered')
                 raise ValueError('NaN Loss encountered')
             else:
-                loss.backward()
+                loss_val.backward()
                 loss_avg.update(loss_items.unsqueeze(0))
 
             if cfg.get("clip_grad_max_norm", None):
@@ -169,16 +182,100 @@ def run_training(cfg, created_datasets, clearml_task):
             loader_bar.set_postfix({
                                     **avg_losses, 
                                     'gpu_mem': f'{mem:.2f}Gb',
-                                    'img_size': meta['img1_shape']
+                                    'img_size': image.shape[2:]
                                     })
 
         val_epoch = cfg.get("val_epoch", 0)
-        if val_epoch > 0 and epoch % val_epoch == 0:
+        if val_epoch <= 0 or epoch % val_epoch != 0:
+            continue
 
-            logger.info(f"Epoch {epoch}: Running evaluation on validation set")
+        logger.info(f"Epoch {epoch}: Running evaluation on validation set")
 
-            eval_model = ema_model.ema
-            eval_model.eval()
+        assert val_dataloader is not None, "No validation dataloader available, set val_epoch == 0 to disable validation or provide a validation dataloader"
 
-            # todo
+        eval_model = ema_model.ema
+        eval_model.eval()
+        
+        evaluator.reset()
+        val_loss_avg = MultioutputWrapper(base_metric=MeanMetric(),
+                                            num_outputs=loss.num_val_losses).to(device)
 
+        with torch.no_grad():
+
+            val_bar = tqdm_loader_bar(val_dataloader,
+                                      mode='val',
+                                      epoch=epoch,
+                                      max_epochs=cfg.epochs)
+
+            for image, targets in val_bar:
+                image = image.to(device)
+
+                raw_output = eval_model(image)
+
+                loss_dict = loss(raw_output, targets, device)
+
+                val_items = torch.stack(list(loss_dict.values())[:loss.num_val_losses])
+                val_loss_avg.update(val_items.unsqueeze(0))
+
+                outputs = eval_model.postprocess(raw_output)
+
+                scores_list = []
+                labels_list = []
+                boxes_list = []
+                for bboxes, labels in outputs:
+                    if bboxes is None or bboxes.numel() == 0:
+                        scores_list.append([])
+                        labels_list.append([])
+                        boxes_list.append([])
+                        continue
+                    scores_list.append(bboxes[:, -1].cpu())
+                    labels_list.append(labels.cpu())
+                    boxes_list.append(bboxes[:, :4].cpu())
+
+                img_ids = [t['img_id'] for t in targets]
+                img0_shapes = [list(t['img_shape']) for t in targets]
+                img1_shapes = [list(image.shape[1:]) for image in image]
+
+                meta_data = {
+                    'img_id': img_ids,
+                    'img0_shape': img0_shapes,
+                    'img1_shape': img1_shapes,
+                }
+
+                bboxes_rows = []
+                for i, t in enumerate(targets):
+                    for j, box in enumerate(t['bboxes']):
+                        row = [i, int(t['labels'][j].item()) , 0,
+                                float(box[0]), float(box[1]), float(box[2]), float(box[3])]
+                        bboxes_rows.append(row)
+
+                if len(bboxes_rows) == 0:
+                    targets_for_eval = {'bboxes': torch.empty((0, 7), dtype=torch.float32)}
+                else:
+                    targets_for_eval = {'bboxes': torch.tensor(bboxes_rows, dtype=torch.float32)}
+
+                predictions = (scores_list, labels_list, boxes_list)
+
+                evaluator.add_batch(predictions, targets_for_eval, meta_data)
+
+                avg_losses = {name: f'{value:.4f}'
+                                for name, value in zip(list(loss_dict.keys())[:loss.num_val_losses], val_loss_avg.compute())}
+                mem = get_allocated_gpu_mem_gb()
+                val_bar.set_postfix({**avg_losses, 'gpu_mem': f'{mem:.2f}Gb', 'img_size': image.shape[2:]})
+
+            metrics = evaluator.compute()
+            logger.info(f"Validation metrics: {metrics}")
+
+        if cfg.get("checkpoint_epoch_interval", 0) > 0 and ((epoch + 1) % cfg.checkpoint_epoch_interval == 0):
+            ckpt_dir = cfg.paths.checkpoint_dir
+            os.makedirs(ckpt_dir, exist_ok=True)
+            checkpoint_path = os.path.join(ckpt_dir, f'ddq_{epoch + 1}.pth')
+            logger.info(f"Saving checkpoint to {checkpoint_path}")
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': ema_model.ema.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'ema_state_dict': ema_model.ema.state_dict(),
+            }, checkpoint_path)
+            logger.info("Checkpoint saved")

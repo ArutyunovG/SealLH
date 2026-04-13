@@ -19,7 +19,7 @@ model:
   head:
     type: "DDQFCNHead"
     args:
-      num_classes: 80
+      num_classes: 1
       in_channels: 128
       feat_channels: 128
       stacked_convs: 2
