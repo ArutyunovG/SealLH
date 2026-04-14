@@ -26,6 +26,20 @@ clearml:
 
   # Additional pip requirements for DDQ project
   pip:
+    requirements:
+      - networkx==3.2.1
+      - torch==2.5.1
+      - pytorch-lightning
+      - hydra-core
+      - omegaconf
+      - clearml
+      - opencv-python-headless
+      - tensorboardX
+      - onnxruntime
+      - onnxsim
+      - onnxscript
+      - pillow         # For image handling in ClearML
+
     pip_extras:
       - mmcv==2.1.0
       - mmdet==3.3.0
