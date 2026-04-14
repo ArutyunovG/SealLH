@@ -127,9 +127,11 @@ class DDQLoss(nn.Module):
                 'loss_bbox': torch.stack(main_loss_dict['aux_loss_bbox']).mean(),
             }
 
-            aux_loss_dict = self.aux_criterion.loss(*aux_results, gt_bboxes, gt_labels, meta_list)
-            loss_dict['aux_loss_cls'] = torch.stack(aux_loss_dict['aux_loss_cls']).mean()
-            loss_dict['aux_loss_bbox'] = torch.stack(aux_loss_dict['aux_loss_bbox']).mean()
+            aux_cls, aux_bbox = aux_results
+            if aux_cls is not None and aux_bbox is not None:
+                aux_loss_dict = self.aux_criterion.loss(*aux_results, gt_bboxes, gt_labels, meta_list)
+                loss_dict['aux_loss_cls'] = torch.stack(aux_loss_dict['aux_loss_cls']).mean()
+                loss_dict['aux_loss_bbox'] = torch.stack(aux_loss_dict['aux_loss_bbox']).mean()
             
         return loss_dict
 
