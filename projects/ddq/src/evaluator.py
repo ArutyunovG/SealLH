@@ -2,15 +2,16 @@ import sys
 import faster_coco_eval
 import torch.distributed as dist
 
-from pathlib import Path
 from copy import deepcopy
-from loguru import logger
+
+import logging
 
 # Replace pycocotools with faster_coco_eval
 faster_coco_eval.init_as_pycocotools()
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
+logger = logging.getLogger("seallh.projects.ddq.src.evaluator")
 
 def clip_coords(boxes, img_shape):
     # Clip bounding xyxy bounding boxes to image shape (height, width)
