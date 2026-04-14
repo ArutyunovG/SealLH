@@ -234,7 +234,7 @@ def run_training(cfg, created_datasets, _):
 
                 img_ids = [t['img_id'] for t in targets]
                 img0_shapes = [list(t['img_shape']) for t in targets]
-                img1_shapes = [list(image.shape[1:]) for image in image]
+                img1_shapes = [list(image.shape[-2:])] * len(targets)
 
                 meta_data = {
                     'img_id': img_ids,
@@ -245,8 +245,9 @@ def run_training(cfg, created_datasets, _):
                 bboxes_rows = []
                 for i, t in enumerate(targets):
                     for j, box in enumerate(t['bboxes']):
-                        row = [i, int(t['labels'][j].item()) , 0,
-                                float(box[0]), float(box[1]), float(box[2]), float(box[3])]
+                        x, y, w, h = float(box[0]), float(box[1]), float(box[2]), float(box[3])
+                        row = [i, int(t['labels'][j].item()), 0,
+                                x, y, x + w, y + h]
                         bboxes_rows.append(row)
 
                 if len(bboxes_rows) == 0:
