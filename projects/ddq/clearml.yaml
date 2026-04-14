@@ -17,13 +17,7 @@ clearml:
     setup_bash_script:
       - apt-get update
       - apt-get install -y libgl1 libglib2.0-0
-      - python -c "import sys; print('python:', sys.executable)"
-      - python -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.version.cuda)"
-      - python -m pip install -U pip setuptools wheel
-      - python -m pip install -U openmim
       - python -m pip uninstall -y mmcv mmcv-lite || true
-      - python -m mim install "mmcv==2.1.0" -y
-      - python -c "import mmcv, pkgutil; print('mmcv:', mmcv.__version__); print('has_mmcv__ext:', any(m.name=='mmcv._ext' for m in pkgutil.iter_modules(mmcv.__path__)))"
 
     env_extras:
       - SEALLH_PROJECT=${project_name}
