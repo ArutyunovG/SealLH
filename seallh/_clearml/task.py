@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 
 from clearml import Task
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 
 logger = logging.getLogger("seallh._clearml.task")
@@ -79,6 +79,11 @@ class ClearMLTask:
             args = docker_config.get("args", [])
             base_env = docker_config.get("env", [])
             extra_env = docker_config.get("env_extras", [])
+            setup_bash_script = docker_config.get("setup_bash_script", None)
+
+            # OmegaConf containers are not always JSON/serialization friendly; coerce to plain types
+            if setup_bash_script is not None and OmegaConf.is_config(setup_bash_script):
+                setup_bash_script = OmegaConf.to_container(setup_bash_script, resolve=True)
             
             logger.info("Setting up Docker configuration: %s", image)
      
@@ -100,7 +105,8 @@ class ClearMLTask:
             # Set docker configuration using the correct API
             self.task.set_base_docker(
                 docker_image=image,
-                docker_arguments=combined_args if combined_args else None
+                docker_arguments=combined_args if combined_args else None,
+                docker_setup_bash_script=setup_bash_script,
             )
             
             logger.info("Docker configuration applied successfully")

@@ -76,5 +76,12 @@ project_name: my_new_project
 # Notes:
 # - `pip_editable` runs `pip install -e /path/to/repo` so code changes apply immediately.
 # - `pip` runs a normal `pip install /path/to/repo`.
+
+# Example: Add docker setup commands executed inside the container before the task starts
+# clearml:
+#   docker:
+#     setup_bash_script:
+#       - apt-get update
+#       - apt-get install -y libgl1 libglib2.0-0
 # - `none` skips installation (useful if repo is used only at runtime via PYTHONPATH).
 

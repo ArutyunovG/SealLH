@@ -139,6 +139,11 @@ clearml:
     env:
       - PYTHONUNBUFFERED=1
       - TZ=${oc.env:TZ,UTC}
+
+    # Optional: commands executed inside the docker before the task starts.
+    # Passed to clearml.Task.set_base_docker(docker_setup_bash_script=...).
+    # Can be a list of commands or a multi-line bash string.
+    setup_bash_script: null
     
     # Project-specific environment variables (empty by default, override in projects)
     env_extras: []
