@@ -21,11 +21,12 @@ clearml:
     env_extras:
       - SEALLH_PROJECT=${project_name}
       - SEALLH_CONFIG_NAME=main
+      - MMCV_WITH_OPS=1
+      - PIP_NO_BINARY=mmcv
 
   # Additional pip requirements for DDQ project
   pip:
     pip_extras:
-      - --no-binary mmcv
       - mmcv==2.1.0
       - mmdet==3.3.0
       - timm==1.0.24
