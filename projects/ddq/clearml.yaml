@@ -24,10 +24,11 @@ clearml:
       - MMCV_WITH_OPS=1
       - PIP_NO_BINARY=mmcv
 
-  # Additional pip requirements for DDQ project
+  # pip requirements for DDQ project
   pip:
     requirements:
       - networkx==3.2.1
+      - triton==3.1.0
       - torch==2.5.1
       - pytorch-lightning
       - hydra-core
