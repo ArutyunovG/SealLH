@@ -22,7 +22,7 @@ project_name: ddq
 phases:
   training: true     # Train the DDQ detector
 
-checkpoint_epoch_interval: 100
+checkpoint_epoch_interval: 1
 val_epoch: 1
 
 input_shape: [480, 640]
