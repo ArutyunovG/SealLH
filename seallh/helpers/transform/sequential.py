@@ -14,7 +14,7 @@ class Sequential(Transform):
 
         for transform in transforms:
             if isinstance(transform, Transform):
-                self.transforms.append(Transform)
+                self.transforms.append(transform)
             else:
                 assert isinstance(transform, DictConfig)
                 transform_cls = import_class(transform["class"])

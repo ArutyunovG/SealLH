@@ -1,4 +1,3 @@
-from projects.ddq.src.ema import is_parallel
 from projects.ddq.src.model import DDQFCN
 from projects.ddq.src.neck import RepFPN
 from projects.ddq.src.head import DDQFCNHead
@@ -240,15 +239,7 @@ def run_training(cfg, created_datasets, clearml_task):
                         labels_list.append(labels.cpu())
                         boxes_list.append(bboxes[:, :4].cpu())
 
-                    img_ids = [t['img_id'] for t in targets]
-                    dst_shapes = [list(t['img_shape']) for t in targets]
-                    src_shapes = [list(image.shape[-2:])] * len(targets)
-
-                    meta_data = {
-                        'img_id': img_ids,
-                        'src_shape': src_shapes,
-                        'dst_shape': dst_shapes,
-                    }
+                    img_shapes = [list(image.shape[-2:])] * len(targets)
 
                     bboxes_rows = []
                     for i, t in enumerate(targets):
@@ -265,7 +256,7 @@ def run_training(cfg, created_datasets, clearml_task):
 
                     predictions = (scores_list, labels_list, boxes_list)
 
-                    evaluator.add_batch(predictions, targets_for_eval, meta_data)
+                    evaluator.add_batch(predictions, targets_for_eval, img_shapes)
 
                     avg_losses = {name: f'{value:.4f}'
                                     for name, value in zip(list(loss_dict.keys())[:loss.num_val_losses], val_loss_avg.compute())}
