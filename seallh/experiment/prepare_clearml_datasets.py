@@ -45,6 +45,12 @@ def prepare_clearml_datasets(cfg: DictConfig):
             
             ds_obj = DatasetCls(root_dir=ds_path, **args)
 
+            modifiers = cfg.dataset[dataset_name].get("modifiers", [])
+            for modifier_cfg in modifiers:
+                ModifierCls = import_class(modifier_cfg["class"])
+                modifier_args = modifier_cfg.get("args", {})
+                ds_obj = ModifierCls(**modifier_args)(ds_obj)
+
             for adapter_cfg in adapters:
                 AdapterCls = import_class(adapter_cfg["class"])
                 adapter_args = adapter_cfg.get("args", {})

@@ -6,15 +6,16 @@ dataset:
     name: COCO
     dataset_id: null
     local_copy_dir: 'datasets/COCO'
-    adapters:
-      - class: seallh.helpers.dataset.adapters.ComposeAdapter
+    modifiers:
+      - class: seallh.helpers.dataset.modifiers.COCOClassFilter
         args:
-          adapters:
-            - class: seallh.helpers.dataset.adapters.ToSingleClassAdapter
-            - class: seallh.helpers.dataset.adapters.BBoxFormatAdapter
-              args:
-                source_format: xywh
-                target_format: xyxy
+          class_names:
+            - person
+    adapters:
+      - class: seallh.helpers.dataset.adapters.BBoxFormatAdapter
+        args:
+          source_format: xywh
+          target_format: xyxy
     instances:
       - split: train
         args: 
