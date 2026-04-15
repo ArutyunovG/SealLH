@@ -1,4 +1,3 @@
 evaluator:
-  class: projects.ddq.src.evaluator.Evaluator
+  class: seallh.helpers.evaluation.coco_evaluator.COCOEvaluator
   args: {}
-  

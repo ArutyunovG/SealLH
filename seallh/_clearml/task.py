@@ -113,6 +113,12 @@ class ClearMLTask:
         else:
             logger.warning("No docker configuration found in config")
 
+    def get_logger(self):
+        return self.task.get_logger()
+
+    def upload_artifact(self, name, artifact_object, **kwargs):
+        self.task.upload_artifact(name=name, artifact_object=artifact_object, **kwargs)
+
     # Convenience passthrough if needed later
     def __getattr__(self, item):
         return getattr(self.task, item)

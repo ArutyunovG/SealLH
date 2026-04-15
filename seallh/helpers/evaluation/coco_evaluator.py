@@ -11,7 +11,7 @@ faster_coco_eval.init_as_pycocotools()
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
-logger = logging.getLogger("seallh.projects.ddq.src.evaluator")
+logger = logging.getLogger("seallh.helpers.evaluation.coco_evaluator")
 
 def clip_coords(boxes, img_shape):
     # Clip bounding xyxy bounding boxes to image shape (height, width)
@@ -118,7 +118,7 @@ def batched_all_gather(data, max_batch_size=10000):
     return gathered_data
 
     
-class Evaluator:
+class COCOEvaluator:
 
     _disable_coco_output = True
     _bbox_metrics = ['AP', 'AP@0.5', 'AP@0.75', 'AP@s', 'AP@m', 'AP@l', 'AR@1', 'AR@10', 'AR@100', 'AR@s', 'AR@m', 'AR@l']

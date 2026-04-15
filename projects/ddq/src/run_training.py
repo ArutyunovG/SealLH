@@ -20,12 +20,12 @@ import os
 logger = logging.getLogger("seallh.projects.ddq.run_training")
 
 
-def run_training(cfg, created_datasets, _):
+def run_training(cfg, created_datasets, clearml_task):
 
     """
     DDQ-specific training function
     """
-    
+   
     logger.info("Setting up model components based on config")
 
     logger.info(f"Building backbone from config: {cfg.model.backbone}")
@@ -133,6 +133,9 @@ def run_training(cfg, created_datasets, _):
     model.to(device)
     ema_model.to(device)
 
+    global_step = 0
+    clearml_logger = clearml_task.get_logger()
+
     for epoch in range(cfg.epochs):
 
         loader_bar = tqdm_loader_bar(dataloader, 
@@ -175,6 +178,12 @@ def run_training(cfg, created_datasets, _):
             ema_model.update(model)
 
             scheduler.step()
+
+            for name, value in loss_dict.items():
+                clearml_logger.report_scalar("train", name, iteration=global_step, value=value.item())
+            clearml_logger.report_scalar("train", "lr", iteration=global_step, value=optimizer.param_groups[0]['lr'])
+
+            global_step += 1
 
             avg_losses = {name: f'{value:.4f}'
                           for name, value in zip(loss_dict.keys(), loss_avg.compute())}
@@ -266,6 +275,13 @@ def run_training(cfg, created_datasets, _):
                 metrics = evaluator.compute()
                 logger.info(f"Validation metrics: {metrics}")
 
+                val_avg_values = val_loss_avg.compute()
+                for name, value in zip(list(loss_dict.keys())[:loss.num_val_losses], val_avg_values):
+                    clearml_logger.report_scalar("val", name, iteration=epoch, value=value.item())
+                if isinstance(metrics, dict):
+                    for name, value in metrics.items():
+                        clearml_logger.report_scalar("val", name, iteration=epoch, value=float(value))
+
         if cfg.get("checkpoint_epoch_interval", 0) > 0 and ((epoch + 1) % cfg.checkpoint_epoch_interval == 0):
             ckpt_dir = cfg.paths.checkpoint_dir
             os.makedirs(ckpt_dir, exist_ok=True)
@@ -279,3 +295,8 @@ def run_training(cfg, created_datasets, _):
                 'ema_state_dict': ema_model.ema.state_dict(),
             }, checkpoint_path)
             logger.info("Checkpoint saved")
+
+            clearml_task.upload_artifact(
+                name=f'checkpoint_epoch_{epoch + 1}',
+                artifact_object=checkpoint_path,
+            )
