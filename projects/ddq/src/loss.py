@@ -119,7 +119,8 @@ class DDQLoss(nn.Module):
         main_cls_scores, _ = main_results
         if len(main_cls_scores) == 0:
             zero = torch.tensor(0.0, device=device, requires_grad=True)
-            loss_dict = {'loss_cls': zero, 'loss_bbox': zero}
+            loss_dict = {'loss_cls': zero, 'loss_bbox': zero,
+                         'aux_loss_cls': zero, 'aux_loss_bbox': zero}
         else:
             main_loss_dict = self.main_criterion.loss(*main_results, gt_bboxes, gt_labels, meta_list)
             loss_dict = {
