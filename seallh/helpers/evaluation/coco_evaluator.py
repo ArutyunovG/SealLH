@@ -1,13 +1,14 @@
 import sys
-import faster_coco_eval
 import torch.distributed as dist
-
-from copy import deepcopy
 
 import logging
 
-# Replace pycocotools with faster_coco_eval
-faster_coco_eval.init_as_pycocotools()
+try:
+    import faster_coco_eval
+    faster_coco_eval.init_as_pycocotools()
+except ImportError:
+    pass
+
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
@@ -21,21 +22,22 @@ def clip_coords(boxes, img_shape):
     boxes[:, 3].clamp_(0, img_shape[0])  # y2
 
 
-def scale_coords(bboxes, original_shape, target_shape, pad_mode='center'):
+def scale_coords(bboxes, src_shape, dst_shape, pad_mode='center'):
     """
-    Rescale bounding boxes from `original_shape` to `target_shape`.
+    Rescale bounding boxes from `src_shape` to `dst_shape`.
 
     Parameters:
     - bboxes: Tensor of shape (N,4) in xyxy format.
-    - original_shape: (height, width) of the source image.
-    - target_shape: (height, width) of the target image.
+    - src_shape: (height, width) of the source image (where coords currently are).
+    - dst_shape: (height, width) of the destination image (where coords should map to).
     - pad_mode: 'center' (default) assumes padding is centered; 'top_left' assumes
       padding was added at the bottom/right (i.e., zero pad offsets).
     """
-    h0, w0 = original_shape
-    h1, w1 = target_shape
+    bboxes = bboxes.clone()
 
-    # scale: target -> original
+    h0, w0 = src_shape
+    h1, w1 = dst_shape
+
     scale_x = w0 / w1
     scale_y = h0 / h1
 
@@ -54,7 +56,7 @@ def scale_coords(bboxes, original_shape, target_shape, pad_mode='center'):
     bboxes[:, [0, 2]] /= scale_x
     bboxes[:, [1, 3]] /= scale_y
 
-    clip_coords(bboxes, target_shape)
+    clip_coords(bboxes, dst_shape)
 
     return bboxes
 
@@ -64,7 +66,7 @@ def xyxy2xywh(box):
     return [x1, y1, x2 - x1, y2 - y1]
 
 
-def predictions_to_coco(predictions, image_ids, img1_shapes, img0_shapes, pad_mode='top_left'):
+def predictions_to_coco(predictions, image_ids, src_shapes, dst_shapes, pad_mode='top_left'):
     scores_pred, labels_pred, bbox_pred = predictions
     batch_size = len(image_ids)
 
@@ -73,12 +75,12 @@ def predictions_to_coco(predictions, image_ids, img1_shapes, img0_shapes, pad_mo
         scores, labels = scores_pred[i], labels_pred[i]
         boxes = bbox_pred[i]
         img_id = image_ids[i]
-        img0_shape, img1_shape = img0_shapes[i], img1_shapes[i]
+        src_shape, dst_shape = src_shapes[i], dst_shapes[i]
 
         if len(boxes) == 0:
             continue
 
-        boxes = scale_coords(boxes, original_shape=img1_shape, target_shape=img0_shape, pad_mode=pad_mode)
+        boxes = scale_coords(boxes, src_shape=src_shape, dst_shape=dst_shape, pad_mode=pad_mode)
 
         for s, l, bb in zip(scores, labels, boxes):
 
@@ -89,6 +91,7 @@ def predictions_to_coco(predictions, image_ids, img1_shapes, img0_shapes, pad_mo
                 'score': float(s),
             }
             out_predictions.append(p)
+
     return out_predictions
 
 
@@ -122,14 +125,13 @@ class COCOEvaluator:
 
     _disable_coco_output = True
     _bbox_metrics = ['AP', 'AP@0.5', 'AP@0.75', 'AP@s', 'AP@m', 'AP@l', 'AR@1', 'AR@10', 'AR@100', 'AR@s', 'AR@m', 'AR@l']
-    _kp_metrics = ['AP', 'AP@0.5', 'AP@0.75', 'AP@m', 'AP@l', 'AR', 'AR@50', 'AR@75', 'AR@m', 'AR@l']
 
     def __init__(self):
         self.category_names = None
         self.reset()
 
     @staticmethod
-    def _targets_to_coco(targets, img_ids, img0_shapes):
+    def _targets_to_coco(targets, img_ids, dst_shapes):
         """
         Converts targets to COCO format annotations
         """
@@ -146,8 +148,8 @@ class COCOEvaluator:
 
             images.append({
                 'id': img_id,
-                'width': img0_shapes[i][1],
-                'height': img0_shapes[i][0],
+                'width': dst_shapes[i][1],
+                'height': dst_shapes[i][0],
                 'file_name': '',
                 'license': 0,
                 'flickr_url': '',
@@ -175,19 +177,17 @@ class COCOEvaluator:
 
     def add_batch(self, predictions, targets, meta_data):
         image_ids = meta_data['img_id']
-        img0_shapes = meta_data['img0_shape']
-        img1_shapes = meta_data['img1_shape']
+        src_shapes = meta_data['src_shape']
+        dst_shapes = meta_data['dst_shape']
 
         if targets is None:
             raise ValueError('Targets must not be None in None ann_path mode')
 
-        predictions = deepcopy(predictions)
-        
-        coco_predictions = predictions_to_coco(predictions, image_ids, img1_shapes, img0_shapes)
+        coco_predictions = predictions_to_coco(predictions, image_ids, src_shapes, dst_shapes)
         
         self.predictions.extend(coco_predictions)
 
-        coco_images, coco_annotations = self._targets_to_coco(targets, image_ids, img0_shapes)
+        coco_images, coco_annotations = self._targets_to_coco(targets, image_ids, dst_shapes)
 
         self.images.extend(coco_images)
         self.annotations.extend(coco_annotations)
@@ -274,8 +274,6 @@ class COCOEvaluator:
 
         for ann, keys in zip(annType, metrics_keys):
             cocoEval = COCOeval(cocoGt, cocoDt, ann)
-
-            # cocoEval.params.kpt_oks_sigmas = np.array(self.kp_oks_sigmas)
             cocoEval.evaluate()
             cocoEval.accumulate()
             cocoEval.summarize()

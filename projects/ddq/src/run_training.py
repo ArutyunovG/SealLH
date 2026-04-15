@@ -241,13 +241,13 @@ def run_training(cfg, created_datasets, clearml_task):
                         boxes_list.append(bboxes[:, :4].cpu())
 
                     img_ids = [t['img_id'] for t in targets]
-                    img0_shapes = [list(t['img_shape']) for t in targets]
-                    img1_shapes = [list(image.shape[-2:])] * len(targets)
+                    dst_shapes = [list(t['img_shape']) for t in targets]
+                    src_shapes = [list(image.shape[-2:])] * len(targets)
 
                     meta_data = {
                         'img_id': img_ids,
-                        'img0_shape': img0_shapes,
-                        'img1_shape': img1_shapes,
+                        'src_shape': src_shapes,
+                        'dst_shape': dst_shapes,
                     }
 
                     bboxes_rows = []
