@@ -186,86 +186,85 @@ def run_training(cfg, created_datasets, _):
                                     })
 
         val_epoch = cfg.get("val_epoch", 0)
-        if val_epoch <= 0 or epoch % val_epoch != 0:
-            continue
+        if val_epoch > 0 and epoch % val_epoch == 0:
 
-        logger.info(f"Epoch {epoch}: Running evaluation on validation set")
+            logger.info(f"Epoch {epoch}: Running evaluation on validation set")
 
-        assert val_dataloader is not None, "No validation dataloader available, set val_epoch == 0 to disable validation or provide a validation dataloader"
+            assert val_dataloader is not None, "No validation dataloader available, set val_epoch == 0 to disable validation or provide a validation dataloader"
 
-        eval_model = ema_model.ema
-        eval_model.eval()
-        
-        evaluator.reset()
-        val_loss_avg = MultioutputWrapper(base_metric=MeanMetric(),
-                                            num_outputs=loss.num_val_losses).to(device)
+            eval_model = ema_model.ema
+            eval_model.eval()
+            
+            evaluator.reset()
+            val_loss_avg = MultioutputWrapper(base_metric=MeanMetric(),
+                                                num_outputs=loss.num_val_losses).to(device)
 
-        with torch.no_grad():
+            with torch.no_grad():
 
-            val_bar = tqdm_loader_bar(val_dataloader,
-                                      mode='val',
-                                      epoch=epoch,
-                                      max_epochs=cfg.epochs)
+                val_bar = tqdm_loader_bar(val_dataloader,
+                                          mode='val',
+                                          epoch=epoch,
+                                          max_epochs=cfg.epochs)
 
-            for image, targets in val_bar:
-                image = image.to(device)
+                for image, targets in val_bar:
+                    image = image.to(device)
 
-                raw_output = eval_model(image)
+                    raw_output = eval_model(image)
 
-                loss_dict = loss(raw_output, targets, device)
+                    loss_dict = loss(raw_output, targets, device)
 
-                val_items = torch.stack(list(loss_dict.values())[:loss.num_val_losses])
-                val_loss_avg.update(val_items.unsqueeze(0))
+                    val_items = torch.stack(list(loss_dict.values())[:loss.num_val_losses])
+                    val_loss_avg.update(val_items.unsqueeze(0))
 
-                outputs = eval_model.postprocess(raw_output)
+                    outputs = eval_model.postprocess(raw_output)
 
-                scores_list = []
-                labels_list = []
-                boxes_list = []
-                for bboxes, labels in outputs:
-                    if bboxes is None or bboxes.numel() == 0:
-                        scores_list.append([])
-                        labels_list.append([])
-                        boxes_list.append([])
-                        continue
-                    scores_list.append(bboxes[:, -1].cpu())
-                    labels_list.append(labels.cpu())
-                    boxes_list.append(bboxes[:, :4].cpu())
+                    scores_list = []
+                    labels_list = []
+                    boxes_list = []
+                    for bboxes, labels in outputs:
+                        if bboxes is None or bboxes.numel() == 0:
+                            scores_list.append([])
+                            labels_list.append([])
+                            boxes_list.append([])
+                            continue
+                        scores_list.append(bboxes[:, -1].cpu())
+                        labels_list.append(labels.cpu())
+                        boxes_list.append(bboxes[:, :4].cpu())
 
-                img_ids = [t['img_id'] for t in targets]
-                img0_shapes = [list(t['img_shape']) for t in targets]
-                img1_shapes = [list(image.shape[-2:])] * len(targets)
+                    img_ids = [t['img_id'] for t in targets]
+                    img0_shapes = [list(t['img_shape']) for t in targets]
+                    img1_shapes = [list(image.shape[-2:])] * len(targets)
 
-                meta_data = {
-                    'img_id': img_ids,
-                    'img0_shape': img0_shapes,
-                    'img1_shape': img1_shapes,
-                }
+                    meta_data = {
+                        'img_id': img_ids,
+                        'img0_shape': img0_shapes,
+                        'img1_shape': img1_shapes,
+                    }
 
-                bboxes_rows = []
-                for i, t in enumerate(targets):
-                    for j, box in enumerate(t['bboxes']):
-                        x1, y1, x2, y2 = float(box[0]), float(box[1]), float(box[2]), float(box[3])
-                        row = [i, int(t['labels'][j].item()), 0,
-                                x1, y1, x2, y2]
-                        bboxes_rows.append(row)
+                    bboxes_rows = []
+                    for i, t in enumerate(targets):
+                        for j, box in enumerate(t['bboxes']):
+                            x1, y1, x2, y2 = float(box[0]), float(box[1]), float(box[2]), float(box[3])
+                            row = [i, int(t['labels'][j].item()), 0,
+                                    x1, y1, x2, y2]
+                            bboxes_rows.append(row)
 
-                if len(bboxes_rows) == 0:
-                    targets_for_eval = {'bboxes': torch.empty((0, 7), dtype=torch.float32)}
-                else:
-                    targets_for_eval = {'bboxes': torch.tensor(bboxes_rows, dtype=torch.float32)}
+                    if len(bboxes_rows) == 0:
+                        targets_for_eval = {'bboxes': torch.empty((0, 7), dtype=torch.float32)}
+                    else:
+                        targets_for_eval = {'bboxes': torch.tensor(bboxes_rows, dtype=torch.float32)}
 
-                predictions = (scores_list, labels_list, boxes_list)
+                    predictions = (scores_list, labels_list, boxes_list)
 
-                evaluator.add_batch(predictions, targets_for_eval, meta_data)
+                    evaluator.add_batch(predictions, targets_for_eval, meta_data)
 
-                avg_losses = {name: f'{value:.4f}'
-                                for name, value in zip(list(loss_dict.keys())[:loss.num_val_losses], val_loss_avg.compute())}
-                mem = get_allocated_gpu_mem_gb()
-                val_bar.set_postfix({**avg_losses, 'gpu_mem': f'{mem:.2f}Gb', 'img_size': image.shape[2:]})
+                    avg_losses = {name: f'{value:.4f}'
+                                    for name, value in zip(list(loss_dict.keys())[:loss.num_val_losses], val_loss_avg.compute())}
+                    mem = get_allocated_gpu_mem_gb()
+                    val_bar.set_postfix({**avg_losses, 'gpu_mem': f'{mem:.2f}Gb', 'img_size': image.shape[2:]})
 
-            metrics = evaluator.compute()
-            logger.info(f"Validation metrics: {metrics}")
+                metrics = evaluator.compute()
+                logger.info(f"Validation metrics: {metrics}")
 
         if cfg.get("checkpoint_epoch_interval", 0) > 0 and ((epoch + 1) % cfg.checkpoint_epoch_interval == 0):
             ckpt_dir = cfg.paths.checkpoint_dir
@@ -274,7 +273,7 @@ def run_training(cfg, created_datasets, _):
             logger.info(f"Saving checkpoint to {checkpoint_path}")
             torch.save({
                 'epoch': epoch,
-                'model_state_dict': ema_model.ema.state_dict(),
+                'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'scheduler_state_dict': scheduler.state_dict(),
                 'ema_state_dict': ema_model.ema.state_dict(),
