@@ -6,16 +6,23 @@ dataset:
     name: COCO
     dataset_id: null
     local_copy_dir: 'datasets/COCO'
+    adapters:
+      - class: seallh.helpers.dataset.adapters.ComposeAdapter
+        args:
+          adapters:
+            - class: seallh.helpers.dataset.adapters.ToSingleClassAdapter
+            - class: seallh.helpers.dataset.adapters.BBoxFormatAdapter
+              args:
+                source_format: xywh
+                target_format: xyxy
     instances:
       - split: train
         args: 
           split: train
           images_dir: .
           annotation_file: instances_train2017.json
-          single_class: true
       - split: validation
         args: 
           split: val
           images_dir: .
           annotation_file: instances_val2017.json
-          single_class: true

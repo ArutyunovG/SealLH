@@ -245,9 +245,9 @@ def run_training(cfg, created_datasets, _):
                 bboxes_rows = []
                 for i, t in enumerate(targets):
                     for j, box in enumerate(t['bboxes']):
-                        x, y, w, h = float(box[0]), float(box[1]), float(box[2]), float(box[3])
+                        x1, y1, x2, y2 = float(box[0]), float(box[1]), float(box[2]), float(box[3])
                         row = [i, int(t['labels'][j].item()), 0,
-                                x, y, x + w, y + h]
+                                x1, y1, x2, y2]
                         bboxes_rows.append(row)
 
                 if len(bboxes_rows) == 0:

@@ -37,12 +37,19 @@ def prepare_clearml_datasets(cfg: DictConfig):
         DatasetCls = import_class(cls_path)
         created_datasets[dataset_name] = {}
 
+        adapters = cfg.dataset[dataset_name].get("adapters", [])
+
         for inst in instances:
             split_name = inst.get("split", "train")
             args = inst.get("args", {})
             
-            # Create dataset instance
             ds_obj = DatasetCls(root_dir=ds_path, **args)
+
+            for adapter_cfg in adapters:
+                AdapterCls = import_class(adapter_cfg["class"])
+                adapter_args = adapter_cfg.get("args", {})
+                ds_obj = AdapterCls(dataset=ds_obj, **adapter_args)
+
             created_datasets[dataset_name][split_name] = ds_obj
             
             logger.info(
