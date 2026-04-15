@@ -114,11 +114,11 @@ class DDQFCNHead(nn.Module):
             stacked_convs=4,
             strides=(8, 16, 32, 64, 128),
             shuffle_channels=64,
-            dqs_cfg=dict(type='nms', iou_threshold=0.7, nms_pre=1000),
+            dqs_cfg=dict(type='nms', iou_threshold=0.7),
             offset=0.5,
             num_distinct_queries=300,
-            norm_cfg=None,      # todo:
             bbox_clamp=8,
+            nms_pre=1000,
     ):
         super(DDQFCNHead, self).__init__()
 
@@ -127,6 +127,7 @@ class DDQFCNHead(nn.Module):
         self.feat_channels = feat_channels
         self.stacked_convs = stacked_convs
         self.strides = strides
+        self.nms_pre = nms_pre
 
         self.prior_generator = MlvlPointGenerator(strides, offset=offset)
         self.num_base_priors = self.prior_generator.num_base_priors
@@ -263,28 +264,22 @@ class DDQFCNHead(nn.Module):
         mlvl_scores = []
         mlvl_query_inds = []
         start_inds = 0
-        for level_idx, (cls_score, bbox_pred, priors, stride) in enumerate(zip(cls_score_list, bbox_pred_list, mlvl_priors, self.prior_generator.strides)):
+        for (cls_score, bbox_pred, priors, stride) in zip(cls_score_list, bbox_pred_list, mlvl_priors, self.prior_generator.strides):
 
             assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             cls_score = cls_score.permute(1, 2, 0).reshape(-1, self.num_classes)
 
             binary_cls_score = cls_score.max(-1).values.reshape(-1, 1)
-            if self.dqs_cfg:
-                nms_pre = self.dqs_cfg.pop('nms_pre', 1000)
-            else:
-                if self.training:
-                    nms_pre = len(binary_cls_score)
-                else:
-                    nms_pre = 1000
-            results = filter_scores_and_topk(binary_cls_score, 0, nms_pre, dict(bbox_pred=bbox_pred, priors=priors, cls_score=cls_score))
-            scores, labels, keep_idxs, filtered_results = results
+            results = filter_scores_and_topk(binary_cls_score, 0, self.nms_pre, dict(bbox_pred=bbox_pred, priors=priors, cls_score=cls_score))
+            _, _, keep_idxs, filtered_results = results
             keep_idxs = keep_idxs + start_inds
             start_inds = start_inds + len(cls_score)
             bbox_pred = filtered_results['bbox_pred']
             priors = filtered_results['priors']
             cls_score = filtered_results['cls_score']
-            bbox_pred = bbox_pred * stride[0]
+            stride_tensor = bbox_pred.new_tensor([stride[0], stride[1], stride[0], stride[1]])
+            bbox_pred = bbox_pred * stride_tensor
             bbox_pred = distance2bbox(priors, bbox_pred)
             mlvl_bboxes.append(bbox_pred)
             mlvl_scores.append(cls_score)
