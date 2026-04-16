@@ -63,7 +63,7 @@ def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
             raise RuntimeError(f"Visualization failed: {e}")
         
         if viz_path and os.path.exists(viz_path):
-            _upload_visualization_to_clearml(viz_path, clearml_task, cfg, logger)
+            _report_visualization(viz_path, clearml_task, cfg, pl_loggers, logger)
     else:
         raise RuntimeError("ONNX export failed, skipping ClearML upload")
     
@@ -202,34 +202,33 @@ def _run_visualization(onnx_path, cfg, datasets_dict, logger):
         raise
 
 
-def _upload_visualization_to_clearml(viz_path, clearml_task, cfg, logger):
-    """Upload visualization image to ClearML artifacts."""
+def _report_visualization(viz_path, clearml_task, cfg, pl_loggers, logger):
+    """Report visualization image to ClearML."""
+    from PIL import Image
+    import numpy as np
+
+    img = Image.open(viz_path)
+
+    if img.mode == 'RGBA':
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        background.paste(img, mask=img.split()[-1])
+        img = background
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    img_array = np.array(img)
+
     try:
         clearml_task.upload_artifact(
             name=f"{cfg.project_name}_visualization",
             artifact_object=viz_path,
         )
-
-        from PIL import Image
-        import numpy as np
-
-        img = Image.open(viz_path)
-
-        if img.mode == 'RGBA':
-            background = Image.new('RGB', img.size, (255, 255, 255))
-            background.paste(img, mask=img.split()[-1])
-            img = background
-        elif img.mode != 'RGB':
-            img = img.convert('RGB')
-
         clearml_task.report_image(
             title="ONNX Model Predictions",
             series="Exported Model Visualization",
-            image=np.array(img),
+            image=img_array,
         )
-
-        logger.info(f"Visualization uploaded to ClearML")
-
+        logger.info("Visualization uploaded to ClearML")
     except Exception as e:
         logger.error(f"Failed to upload visualization to ClearML: {e}")
 
@@ -279,4 +278,7 @@ def _parse_dynamic_axes(export_cfg) -> dict:
     for name, axes in dyn.items():
         result[str(name)] = {int(k): str(v) for k, v in axes.items()}
     return result
+
+
+
 

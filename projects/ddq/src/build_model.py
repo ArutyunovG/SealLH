@@ -32,7 +32,8 @@ def build_model(cfg):
     logger.info(f"Head created: {head.__class__.__name__}")
 
     logger.info("Building DDQ model")
-    model = DDQFCN(backbone=backbone, neck=neck, bbox_head=head)
+    model = DDQFCN(backbone=backbone, neck=neck, bbox_head=head,
+                   norm_mean=list(cfg.norm_mean), norm_std=list(cfg.norm_std))
     logger.info(f"DDQ model created: {model.__class__.__name__}")
 
     return model

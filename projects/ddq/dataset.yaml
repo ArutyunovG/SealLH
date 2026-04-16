@@ -6,6 +6,7 @@ dataset:
     name: COCO
     dataset_id: null
     local_copy_dir: 'datasets/COCO'
+    transform: ${transform}
     modifiers:
       - class: seallh.helpers.dataset.modifiers.COCOClassFilter
         args:

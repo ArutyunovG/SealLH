@@ -1,6 +1,6 @@
 run_training_func: "projects.ddq.src.run_training.run_training"
 
-epochs: 15
+epochs: 2
 max_iters: 0 # to be set from dataloader
 
 optimizer:

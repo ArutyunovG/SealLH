@@ -2,7 +2,6 @@ from projects.ddq.src.build_model import build_model
 from projects.ddq.src.setup_dataloader import setup_dataloader
 
 from seallh.experiment.utils import import_class
-from seallh.helpers.dataset.map import Map as MapDataset
 from seallh.helpers.sysinfo import get_allocated_gpu_mem_gb
 from seallh.helpers.tqdm_loader_bar import tqdm_loader_bar
 
@@ -22,19 +21,6 @@ def run_training(cfg, created_datasets, clearml_task):
     """
    
     model = build_model(cfg)
-
-    transform_cfg = cfg.transform
-    logger.info(f"Building transform from config: {transform_cfg}")
-    transform_cls = import_class(transform_cfg["class"])
-    transform = transform_cls(**transform_cfg.args)
-    logger.info("Transform created")
-
-    logger.info("Mapping datasets")
-    for dataset_dct in created_datasets.values():
-        for split in ('train', 'validation'):
-            if split in dataset_dct:
-                dataset_dct[split] = MapDataset(dataset_dct[split], func=transform)
-    logger.info("Dataset mapping done")
 
     dataloader = setup_dataloader(cfg=cfg,
                                   created_datasets=created_datasets,
@@ -106,7 +92,7 @@ def run_training(cfg, created_datasets, clearml_task):
 
         loader_bar = tqdm_loader_bar(dataloader, 
                                      mode='train',
-                                     epoch=epoch,
+                                     epoch=epoch + 1,
                                      max_epochs=cfg.epochs)
         
        
@@ -178,7 +164,7 @@ def run_training(cfg, created_datasets, clearml_task):
 
                 val_bar = tqdm_loader_bar(val_dataloader,
                                           mode='val',
-                                          epoch=epoch,
+                                          epoch=epoch + 1,
                                           max_epochs=cfg.epochs)
 
                 for image, targets in val_bar:

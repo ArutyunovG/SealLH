@@ -1,0 +1,6 @@
+# DDQ-specific inference configuration
+inference:
+  conf_thresh: 0.3
+  nms_iou: 0.7
+  nms_pre: 1000
+  topk: 300

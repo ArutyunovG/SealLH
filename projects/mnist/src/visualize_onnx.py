@@ -33,8 +33,8 @@ def visualize_exported_model(onnx_path, cfg, datasets_dict):
         input_info = ort_session.get_inputs()[0]
         logger.info(f"ONNX model expects input: name='{input_info.name}', shape={input_info.shape}, type={input_info.type}")
         
-        # Get input shape from export config
-        export_input_shape = cfg.export.input_shape
+        # Get input shape from export config (strip batch dim)
+        export_input_shape = list(cfg.export.inputs[0].shape)[1:]
         logger.info(f"Using input shape from config: {export_input_shape}")
         
         # Get test dataset

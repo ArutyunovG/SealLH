@@ -3,6 +3,7 @@ import logging
 
 from seallh.experiment.utils import import_class
 from seallh._clearml.dataset import ClearMLDataset
+from seallh.helpers.dataset.map import Map as MapDataset
 
 
 def prepare_clearml_datasets(cfg: DictConfig):
@@ -55,6 +56,16 @@ def prepare_clearml_datasets(cfg: DictConfig):
                 AdapterCls = import_class(adapter_cfg["class"])
                 adapter_args = adapter_cfg.get("args", {})
                 ds_obj = AdapterCls(dataset=ds_obj, **adapter_args)
+
+            transform_cfg = cfg.dataset[dataset_name].get("transform", None)
+            if transform_cfg and transform_cfg.get("class", None):
+                TransformCls = import_class(transform_cfg["class"])
+                transform = TransformCls(**transform_cfg.get("args", {}))
+                ds_obj = MapDataset(ds_obj, func=transform)
+                logger.info(
+                    "Applied transform '%s' to split '%s' of dataset '%s'",
+                    transform_cfg["class"], split_name, dataset_name
+                )
 
             created_datasets[dataset_name][split_name] = ds_obj
             

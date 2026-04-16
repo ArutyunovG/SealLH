@@ -34,7 +34,8 @@ def bbox_decode(distance, anchor_points, dim=-1):
 
 
 class DDQFCN(nn.Module):
-    def __init__(self, backbone: nn.Module, neck: nn.Module, bbox_head: nn.Module, num_distinct_queries=300):
+    def __init__(self, backbone: nn.Module, neck: nn.Module, bbox_head: nn.Module, num_distinct_queries=300,
+                 norm_mean=(0.485, 0.456, 0.406), norm_std=(0.229, 0.224, 0.225)):
         super(DDQFCN, self).__init__()
         self.backbone = backbone
         self.neck = nn.Sequential(neck)
@@ -43,6 +44,9 @@ class DDQFCN(nn.Module):
         self.nc = self.bbox_head.num_classes
         self.num_distinct_queries = num_distinct_queries
         self.strides = self.bbox_head.strides
+
+        self.register_buffer("pixel_mean", torch.tensor(norm_mean).view(1, 3, 1, 1))
+        self.register_buffer("pixel_std", torch.tensor(norm_std).view(1, 3, 1, 1))
 
     def init_weights(self):
         initialize_module_weights(self.neck, validate=True)
@@ -53,6 +57,9 @@ class DDQFCN(nn.Module):
         return out
 
     def _forward(self, x: Tensor):
+
+        x = (x - self.pixel_mean) / self.pixel_std
+
         backbone_feats = self.backbone(x)
         neck_feat = self.neck(backbone_feats)
         outputs = self.bbox_head(neck_feat)

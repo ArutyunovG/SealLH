@@ -183,6 +183,9 @@ export:
     export_params: true
     simplify: true  # Apply ONNX model simplification using onnxsim
 
+# Inference configuration (for post-processing and visualization)
+inference: {}
+
 # Output paths structure (for convenience - not used in interpolations above)
 paths:
   output_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}
