@@ -120,9 +120,9 @@ class ClearMLTask:
         self.task.get_logger().report_scalar(title, series, iteration=iteration, value=value)
         self.task.get_logger().flush()
 
-    def report_image(self, title, series, image, iteration=0):
-        self.task.get_logger().report_image(title, series, image=image, iteration=iteration)
-        self.task.get_logger().flush()
+    def report_image(self, title, series, image=None, iteration=0, local_path=None):
+        self.task.get_logger().report_image(title, series, image=image, iteration=iteration, local_path=local_path)
+        self.task.get_logger().flush(wait=True)
 
     def upload_artifact(self, name, artifact_object, **kwargs):
         self.task.upload_artifact(name=name, artifact_object=artifact_object, **kwargs)

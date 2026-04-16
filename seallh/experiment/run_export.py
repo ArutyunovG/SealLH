@@ -204,29 +204,19 @@ def _run_visualization(onnx_path, cfg, datasets_dict, logger):
 
 def _report_visualization(viz_path, clearml_task, cfg, pl_loggers, logger):
     """Report visualization image to ClearML."""
-    from PIL import Image
-    import numpy as np
+    import os
 
-    img = Image.open(viz_path)
-
-    if img.mode == 'RGBA':
-        background = Image.new('RGB', img.size, (255, 255, 255))
-        background.paste(img, mask=img.split()[-1])
-        img = background
-    elif img.mode != 'RGB':
-        img = img.convert('RGB')
-
-    img_array = np.array(img)
+    abs_viz_path = os.path.abspath(viz_path)
 
     try:
         clearml_task.upload_artifact(
             name=f"{cfg.project_name}_visualization",
-            artifact_object=viz_path,
+            artifact_object=abs_viz_path,
         )
         clearml_task.report_image(
             title="ONNX Model Predictions",
             series="Exported Model Visualization",
-            image=img_array,
+            local_path=abs_viz_path,
         )
         logger.info("Visualization uploaded to ClearML")
     except Exception as e:
