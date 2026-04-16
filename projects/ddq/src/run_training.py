@@ -131,9 +131,10 @@ def run_training(cfg, created_datasets, clearml_task):
 
             scheduler.step()
 
-            for name, value in loss_dict.items():
-                clearml_task.report_scalar("train", name, iteration=global_step, value=value.item())
-            clearml_task.report_scalar("train", "lr", iteration=global_step, value=optimizer.param_groups[0]['lr'])
+            if global_step % cfg.loss_log_interval == 0:
+                for name, value in loss_dict.items():
+                    clearml_task.report_scalar("train", name, iteration=global_step, value=value.item())
+                clearml_task.report_scalar("train", "lr", iteration=global_step, value=optimizer.param_groups[0]['lr'])
 
             global_step += 1
 
