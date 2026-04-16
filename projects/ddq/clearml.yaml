@@ -2,7 +2,7 @@
 clearml:
   # DDQ project identifier
   project_name: "sandbox/${project_name}"
-  
+
   docker:
     image: "nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04"
     args:

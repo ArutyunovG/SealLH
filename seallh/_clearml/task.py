@@ -124,6 +124,10 @@ class ClearMLTask:
         self.task.get_logger().report_image(title, series, image=image, iteration=iteration, local_path=local_path)
         self.task.get_logger().flush(wait=True)
 
+    def report_matplotlib_figure(self, title, series, figure, iteration=0, report_interactive=True):
+        self.task.get_logger().report_matplotlib_figure(title, series, figure=figure, iteration=iteration, report_interactive=report_interactive)
+        self.task.get_logger().flush(wait=True)
+
     def upload_artifact(self, name, artifact_object, **kwargs):
         self.task.upload_artifact(name=name, artifact_object=artifact_object, **kwargs)
 
