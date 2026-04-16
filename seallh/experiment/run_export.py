@@ -1,11 +1,11 @@
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import logging
 import torch
 import os
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 from seallh.experiment.model_loading import get_model_loader
-
 
 def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
     """Run model export/conversion to various formats (ONNX, TorchScript, etc.)."""
@@ -30,19 +30,27 @@ def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
     model_loader = get_model_loader(cfg)
     model = model_loader(checkpoint_path, cfg)
     
-    # Determine device (use CPU for export to avoid device issues)
-    device = torch.device("cpu")
-    model = model.to(device)
+    # Determine device
+    device_str = str(cfg.export.get("device", "cpu"))
+    device = torch.device(device_str)
+    model = model.to(device).eval()
     
-    # Get input shape from config
-    input_shape = cfg.export.input_shape
-    logger.info(f"Using input shape for export: {input_shape}")
+    # Parse inputs/outputs from config
+    input_names, input_shapes, input_dtypes = _parse_inputs(cfg.export)
+    output_names = _parse_outputs(cfg.export)
+    dynamic_axes = _parse_dynamic_axes(cfg.export)
+
+    logger.info(f"Export inputs: {dict(zip(input_names, input_shapes))}")
+    logger.info(f"Export outputs: {output_names}")
     
-    # Create dummy input tensor (batch size = 1) on the same device as model
-    dummy_input = torch.randn(1, *input_shape, device=device)
+    # Create dummy inputs
+    dummy_inputs = [torch.randn(s, dtype=dt, device=device) for s, dt in zip(input_shapes, input_dtypes)]
+    dummy_input = tuple(dummy_inputs) if len(dummy_inputs) > 1 else dummy_inputs[0]
     
     # Export to ONNX format
-    onnx_path = _export_onnx(model, dummy_input, export_dir, cfg, logger)
+    onnx_path = _export_onnx(model, dummy_input, export_dir, cfg, logger,
+                             input_names=input_names, output_names=output_names,
+                             dynamic_axes=dynamic_axes)
     
     # Upload to ClearML artifacts if export was successful
     if onnx_path and os.path.exists(onnx_path):
@@ -62,7 +70,8 @@ def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
     logger.info(f"Export completed! Files saved to: {export_dir}")
 
 
-def _export_onnx(model, dummy_input, export_dir, cfg, logger):
+def _export_onnx(model, dummy_input, export_dir, cfg, logger,
+                 input_names, output_names, dynamic_axes=None):
     """Export model to ONNX format."""
     try:
         import torch.onnx
@@ -70,18 +79,23 @@ def _export_onnx(model, dummy_input, export_dir, cfg, logger):
         onnx_path = os.path.join(export_dir, f"{cfg.project_name}.onnx")
         logger.info(f"Exporting to ONNX: {onnx_path}")
         
-        # Get ONNX export settings
         onnx_cfg = cfg.export.onnx
         
+        export_kwargs = dict(
+            export_params=onnx_cfg.get("export_params", True),
+            opset_version=onnx_cfg.get("opset_version", 11),
+            do_constant_folding=onnx_cfg.get("do_constant_folding", True),
+            input_names=input_names,
+            output_names=output_names,
+        )
+        if dynamic_axes:
+            export_kwargs["dynamic_axes"] = dynamic_axes
+
         torch.onnx.export(
             model,
             dummy_input,
             onnx_path,
-            export_params=onnx_cfg.get("export_params", True),
-            opset_version=onnx_cfg.get("opset_version", 11),
-            do_constant_folding=onnx_cfg.get("do_constant_folding", True),
-            input_names=["input"],
-            output_names=["output"]
+            **export_kwargs,
         )
         
         logger.info(f"ONNX export successful: {onnx_path}")
@@ -218,3 +232,51 @@ def _upload_visualization_to_clearml(viz_path, clearml_task, cfg, logger):
 
     except Exception as e:
         logger.error(f"Failed to upload visualization to ClearML: {e}")
+
+
+def _parse_inputs(export_cfg) -> Tuple[List[str], List[Tuple[int, ...]], List[torch.dtype]]:
+    """Parse export.inputs config:
+        export:
+          inputs:
+            - name: images
+              shape: [1, 3, 640, 640]
+              dtype: float32
+    """
+
+    _DTYPE_MAP = {
+        "float32": torch.float32, "fp32": torch.float32,
+        "float16": torch.float16, "half": torch.float16, "fp16": torch.float16,
+        "bfloat16": torch.bfloat16, "bf16": torch.bfloat16,
+        "int64": torch.int64, "long": torch.int64,
+        "int32": torch.int32, "int": torch.int32,
+        "int8": torch.int8,
+        "uint8": torch.uint8,
+        "bool": torch.bool,
+    }
+
+    inputs = export_cfg.inputs
+    names, shapes, dtypes = [], [], []
+    for item in inputs:
+        names.append(str(item["name"]))
+        shapes.append(tuple(item["shape"]))
+        dtypes.append(_DTYPE_MAP.get(str(item.get("dtype", "float32")), torch.float32))
+    return names, shapes, dtypes
+
+
+def _parse_outputs(export_cfg) -> List[str]:
+    """Parse export.outputs list."""
+    return list(export_cfg.outputs)
+
+
+def _parse_dynamic_axes(export_cfg) -> dict:
+    """Parse dynamic_axes from config. Returns empty dict if not specified."""
+    if "dynamic_axes" not in export_cfg:
+        return {}
+    dyn = export_cfg.dynamic_axes
+    if isinstance(dyn, bool):
+        return {} if not dyn else {}
+    result = {}
+    for name, axes in dyn.items():
+        result[str(name)] = {int(k): str(v) for k, v in axes.items()}
+    return result
+

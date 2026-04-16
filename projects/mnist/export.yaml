@@ -1,5 +1,8 @@
 # MNIST-specific export configuration
-
-# Override default input shape for MNIST (28x28 grayscale images)
 export:
-  input_shape: [784]  # MNIST: 1 channel (grayscale), 28x28 pixels
+  inputs:
+    - name: data
+      shape: [1, 784]
+      dtype: float32
+  outputs:
+    - scores
