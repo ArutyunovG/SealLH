@@ -41,7 +41,7 @@ clearml:
       - onnxsim
       - onnxscript
       - pillow
-      - mmcv==2.2.0
+      - mmcv==2.1.0
       - mmdet==3.3.0
       - timm==1.0.24
       - albumentations
