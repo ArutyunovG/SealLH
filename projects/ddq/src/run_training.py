@@ -168,7 +168,7 @@ def run_training(cfg, created_datasets, clearml_task):
                                                         num_outputs=loss.num_val_losses).to(device)
 
                     val_bar = tqdm_loader_bar(val_dataloader,
-                                              mode=f'val/{ds_name}',
+                                              mode='val',
                                               epoch=epoch + 1,
                                               max_epochs=cfg.epochs)
 
