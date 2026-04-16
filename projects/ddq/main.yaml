@@ -13,6 +13,7 @@ defaults:
   - model
   - training
   - transform
+  - export
   - _self_
 
 # Project identifier (used in paths and logging)
@@ -21,6 +22,7 @@ project_name: ddq
 # Experiment phases configuration for DDQ
 phases:
   training: true     # Train the DDQ detector
+  export: true       # Export model to ONNX
 
 checkpoint_epoch_interval: 1
 val_epoch: 1

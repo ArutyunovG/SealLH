@@ -1,7 +1,4 @@
-from projects.ddq.src.model import DDQFCN
-from projects.ddq.src.neck import RepFPN
-from projects.ddq.src.head import DDQFCNHead
-
+from projects.ddq.src.build_model import build_model
 from projects.ddq.src.setup_dataloader import setup_dataloader
 
 from seallh.experiment.utils import import_class
@@ -9,7 +6,6 @@ from seallh.helpers.dataset.map import Map as MapDataset
 from seallh.helpers.sysinfo import get_allocated_gpu_mem_gb
 from seallh.helpers.tqdm_loader_bar import tqdm_loader_bar
 
-import timm
 import torch
 from torchmetrics import MeanMetric, MultioutputWrapper
 
@@ -25,35 +21,7 @@ def run_training(cfg, created_datasets, clearml_task):
     DDQ-specific training function
     """
    
-    logger.info("Setting up model components based on config")
-
-    logger.info(f"Building backbone from config: {cfg.model.backbone}")
-    if cfg.model.backbone.type == "timm":
-        backbone = timm.create_model(**cfg.model.backbone.args)
-    else:
-        raise ValueError(f"Unsupported backbone type: {cfg.model.backbone.type}")
-    logger.info(f"Backbone created: {backbone.__class__.__name__}")
-
-    logger.info(f"Building neck from config: {cfg.model.neck}")
-    if cfg.model.neck.type == "RepFPN":
-        neck = RepFPN(**cfg.model.neck.args)
-    else:
-        raise ValueError(f"Unsupported neck type: {cfg.model.neck.type}")
-    logger.info(f"Neck created: {neck.__class__.__name__}")
-
-    logger.info(f"Building head from config: {cfg.model.head}")
-    if cfg.model.head.type == "DDQFCNHead":
-        head = DDQFCNHead(**cfg.model.head.args)
-    else:
-        raise ValueError(f"Unsupported head type: {cfg.model.head.type}")
-    logger.info(f"Head created: {head.__class__.__name__}")
-
-
-    logger.info("Building DDQ model")
-    model = DDQFCN(backbone=backbone,
-                   neck=neck,
-                   bbox_head=head)
-    logger.info(f"DDQ model created: {model.__class__.__name__}")
+    model = build_model(cfg)
 
     transform_cfg = cfg.transform
     logger.info(f"Building transform from config: {transform_cfg}")
@@ -275,7 +243,7 @@ def run_training(cfg, created_datasets, clearml_task):
         if cfg.get("checkpoint_epoch_interval", 0) > 0 and ((epoch + 1) % cfg.checkpoint_epoch_interval == 0):
             ckpt_dir = cfg.paths.checkpoint_dir
             os.makedirs(ckpt_dir, exist_ok=True)
-            checkpoint_path = os.path.join(ckpt_dir, f'ddq_{epoch + 1}.pth')
+            checkpoint_path = os.path.join(ckpt_dir, f'ddq_pytorch.pth')
             logger.info(f"Saving checkpoint to {checkpoint_path}")
             torch.save({
                 'epoch': epoch,
