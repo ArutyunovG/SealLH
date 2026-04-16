@@ -130,7 +130,7 @@ clearml:
 
   # Docker configuration for remote execution (generic ML stack)
   docker:
-    image: ${oc.env:SEALLH_DOCKER_IMAGE,${oc.env:SEALLH_DOCKER_IMAGE,"nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04"}}
+    image: ${oc.env:SEALLH_DOCKER_IMAGE,${oc.env:SEALLH_DOCKER_IMAGE,"nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04"}}
     args:
       - --gpus
       - all
@@ -163,6 +163,7 @@ clearml:
       - onnxsim
       - onnxscript
       - pillow         # For image handling in ClearML
+      - albumentations
 
     # Project-specific pip requirements (empty by default, override in projects)
     pip_extras: []
