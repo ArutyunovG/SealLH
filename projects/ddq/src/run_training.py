@@ -133,7 +133,6 @@ def run_training(cfg, created_datasets, clearml_task):
     ema_model.to(device)
 
     global_step = 0
-    clearml_logger = clearml_task.get_logger()
 
     for epoch in range(cfg.epochs):
 
@@ -179,8 +178,8 @@ def run_training(cfg, created_datasets, clearml_task):
             scheduler.step()
 
             for name, value in loss_dict.items():
-                clearml_logger.report_scalar("train", name, iteration=global_step, value=value.item())
-            clearml_logger.report_scalar("train", "lr", iteration=global_step, value=optimizer.param_groups[0]['lr'])
+                clearml_task.report_scalar("train", name, iteration=global_step, value=value.item())
+            clearml_task.report_scalar("train", "lr", iteration=global_step, value=optimizer.param_groups[0]['lr'])
 
             global_step += 1
 
@@ -264,14 +263,14 @@ def run_training(cfg, created_datasets, clearml_task):
                     val_bar.set_postfix({**avg_losses, 'gpu_mem': f'{mem:.2f}Gb', 'img_size': image.shape[2:]})
 
                 metrics = evaluator.compute()
+                assert 'bbox' in metrics, f"No bbox keys found in metrics"
                 logger.info(f"Validation metrics: {metrics}")
 
                 val_avg_values = val_loss_avg.compute()
                 for name, value in zip(list(loss_dict.keys())[:loss.num_val_losses], val_avg_values):
-                    clearml_logger.report_scalar("val", name, iteration=epoch, value=value.item())
-                if isinstance(metrics, dict):
-                    for name, value in metrics.items():
-                        clearml_logger.report_scalar("val", name, iteration=epoch, value=float(value))
+                    clearml_task.report_scalar("val", name, iteration=epoch, value=value.item())
+                for name, value in metrics['bbox'].items():
+                    clearml_task.report_scalar("val", name, iteration=epoch, value=float(value))
 
         if cfg.get("checkpoint_epoch_interval", 0) > 0 and ((epoch + 1) % cfg.checkpoint_epoch_interval == 0):
             ckpt_dir = cfg.paths.checkpoint_dir

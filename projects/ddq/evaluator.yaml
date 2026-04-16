@@ -1,3 +1,16 @@
 evaluator:
   class: seallh.helpers.evaluation.coco_evaluator.COCOEvaluator
-  args: {}
+  args:
+    bbox_metrics:
+      - AP
+      - AP@0.5
+      - AP@0.75
+      - AP@s
+      - AP@m
+      - AP@l
+      - AR@1
+      - AR@10
+      - AR@100
+      - AR@s
+      - AR@m
+      - AR@l

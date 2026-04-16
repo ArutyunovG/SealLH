@@ -116,6 +116,12 @@ class ClearMLTask:
     def get_logger(self):
         return self.task.get_logger()
 
+    def report_scalar(self, title, series, iteration, value):
+        self.task.get_logger().report_scalar(title, series, iteration=iteration, value=value)
+
+    def report_image(self, title, series, image, iteration=0):
+        self.task.get_logger().report_image(title, series, image=image, iteration=iteration)
+
     def upload_artifact(self, name, artifact_object, **kwargs):
         self.task.upload_artifact(name=name, artifact_object=artifact_object, **kwargs)
 

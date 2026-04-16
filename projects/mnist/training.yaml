@@ -14,7 +14,9 @@ train:
   # Optimizer and scheduler inherited from defaults.yaml
 
 
-# Trainer configuration inherited from defaults.yaml
+# Trainer configuration - CPU only for MNIST
+trainer:
+  accelerator: cpu
 
 
 # Metrics configuration per stage

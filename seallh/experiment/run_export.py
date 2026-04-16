@@ -14,30 +14,21 @@ def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
     logger.info("Starting export phase...")
     
     # Set up paths
-    checkpoint_dir = cfg.paths.checkpoint_dir
+    checkpoint_path = cfg.paths.checkpoint_path
     export_dir = cfg.paths.export_dir
     
     # Create export directory
     Path(export_dir).mkdir(parents=True, exist_ok=True)
     
-    # Get checkpoint filename from ModelCheckpoint callback config
-    checkpoint_filename = "best"  # default fallback
-    for callback_cfg in cfg.trainer.callbacks:
-        if callback_cfg.get("class") == "pytorch_lightning.callbacks.ModelCheckpoint":
-            checkpoint_filename = callback_cfg.get("args", {}).get("filename", "best")
-            break
-    
-    best_checkpoint_path = os.path.join(checkpoint_dir, f"{checkpoint_filename}.ckpt")
-    
     # Check if checkpoint exists
-    if not os.path.exists(best_checkpoint_path):
-        logger.warning(f"Best checkpoint not found at: {best_checkpoint_path}")
+    if not os.path.exists(checkpoint_path):
+        logger.warning(f"Checkpoint not found at: {checkpoint_path}")
         logger.info("Export phase skipped - no trained model checkpoint available")
         return
     
     # Load model using configurable model loader
     model_loader = get_model_loader(cfg)
-    model = model_loader(best_checkpoint_path, cfg)
+    model = model_loader(checkpoint_path, cfg)
     
     # Determine device (use CPU for export to avoid device issues)
     device = torch.device("cpu")
@@ -55,7 +46,7 @@ def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
     
     # Upload to ClearML artifacts if export was successful
     if onnx_path and os.path.exists(onnx_path):
-        _upload_to_clearml(onnx_path, clearml_task, cfg, logger)
+        clearml_task.upload_artifact(name=f"{cfg.project_name}_onnx_model", artifact_object=onnx_path)
         
         # Run visualization if available
         try:
@@ -169,33 +160,6 @@ def _simplify_onnx_model(onnx_path, logger):
         return onnx_path
 
 
-def _upload_to_clearml(onnx_path, clearml_task, cfg, logger):
-    """Upload exported ONNX model to ClearML artifacts."""
-    try:
-        if clearml_task and clearml_task.task:
-            logger.info(f"Uploading ONNX model to ClearML artifacts: {onnx_path}")
-            
-            # Upload the ONNX file as an artifact
-            artifact_name = f"{cfg.project_name}_model"
-            clearml_task.task.upload_artifact(
-                name=artifact_name,
-                artifact_object=onnx_path,
-                metadata={
-                    "format": "onnx",
-                    "input_shape": cfg.export.input_shape,
-                    "opset_version": cfg.export.onnx.get("opset_version", 11),
-                    "project": cfg.project_name
-                }
-            )
-            
-            logger.info(f"ONNX model uploaded to ClearML as artifact: {artifact_name}")
-        else:
-            logger.warning("ClearML task not available - skipping artifact upload")
-            
-    except Exception as e:
-        logger.error(f"Failed to upload ONNX model to ClearML: {e}")
-
-
 def _run_visualization(onnx_path, cfg, datasets_dict, logger):
     """Run project-specific visualization of the exported ONNX model."""
     try:
@@ -227,50 +191,30 @@ def _run_visualization(onnx_path, cfg, datasets_dict, logger):
 def _upload_visualization_to_clearml(viz_path, clearml_task, cfg, logger):
     """Upload visualization image to ClearML artifacts."""
     try:
-        if clearml_task and clearml_task.task:
-            logger.info(f"Uploading visualization to ClearML: {viz_path}")
-            
-            # Upload as artifact
-            artifact_name = f"{cfg.project_name}_visualization"
-            clearml_task.task.upload_artifact(
-                name=artifact_name,
-                artifact_object=viz_path,
-                metadata={
-                    "type": "visualization",
-                    "format": "png",
-                    "description": "ONNX model prediction visualization",
-                    "project": cfg.project_name
-                }
-            )
-            
-            # Also log as image for easy viewing in ClearML UI
-            from PIL import Image
-            import numpy as np
-            
-            img = Image.open(viz_path)
-            
-            # Convert RGBA to RGB if necessary to avoid format issues
-            if img.mode == 'RGBA':
-                # Create a white background and paste the image on it
-                background = Image.new('RGB', img.size, (255, 255, 255))
-                background.paste(img, mask=img.split()[-1])  # Use alpha channel as mask
-                img = background
-            elif img.mode != 'RGB':
-                # Convert any other mode to RGB
-                img = img.convert('RGB')
-            
-            img_array = np.array(img)
-            
-            clearml_task.task.get_logger().report_image(
-                title="ONNX Model Predictions",
-                series="Exported Model Visualization",
-                image=img_array,
-                iteration=0
-            )
-            
-            logger.info(f"Visualization uploaded to ClearML as artifact: {artifact_name}")
-        else:
-            logger.warning("ClearML task not available - skipping visualization upload")
-            
+        clearml_task.upload_artifact(
+            name=f"{cfg.project_name}_visualization",
+            artifact_object=viz_path,
+        )
+
+        from PIL import Image
+        import numpy as np
+
+        img = Image.open(viz_path)
+
+        if img.mode == 'RGBA':
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[-1])
+            img = background
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        clearml_task.report_image(
+            title="ONNX Model Predictions",
+            series="Exported Model Visualization",
+            image=np.array(img),
+        )
+
+        logger.info(f"Visualization uploaded to ClearML")
+
     except Exception as e:
         logger.error(f"Failed to upload visualization to ClearML: {e}")

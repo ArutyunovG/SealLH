@@ -130,7 +130,7 @@ clearml:
 
   # Docker configuration for remote execution (generic ML stack)
   docker:
-    image: ${oc.env:SEALLH_DOCKER_IMAGE,${oc.env:SEALLH_DOCKER_IMAGE,"nvidia/cuda:12.4.1-cudnn9-runtime-ubuntu22.04"}}
+    image: ${oc.env:SEALLH_DOCKER_IMAGE,${oc.env:SEALLH_DOCKER_IMAGE,"nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04"}}
     args:
       - --gpus
       - all
@@ -183,5 +183,6 @@ export:
 paths:
   output_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}
   checkpoint_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/checkpoints
+  checkpoint_path: ${paths.checkpoint_dir}/best.ckpt
   log_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/logs
   export_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/exports

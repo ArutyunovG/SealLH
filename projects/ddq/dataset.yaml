@@ -10,7 +10,7 @@ dataset:
       - class: seallh.helpers.dataset.modifiers.COCOClassFilter
         args:
           class_names:
-            - person
+            - bus
     adapters:
       - class: seallh.helpers.dataset.adapters.BBoxFormatAdapter
         args:

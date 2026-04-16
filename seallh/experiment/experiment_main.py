@@ -16,6 +16,9 @@ def experiment_main(cfg: DictConfig) -> None:
     """Experiment main, receives config from main.py"""
     logger = logging.getLogger("seallh.experiment")
     logger.info("Entered experiment_main")
+
+    clearml_task = ClearMLTask(clearml_config=cfg.clearml)
+
     pl_loggers = setup_logging(cfg)
 
     logger.info('Running experiment with config:')
@@ -30,9 +33,6 @@ def experiment_main(cfg: DictConfig) -> None:
         logger.warning(f"Could not fully resolve config for logging: {e}")
         raise
     logger.info('============================================================')
-   
-    # Initialize ClearML Task with the full config (clearml.yaml is merged into root)
-    clearml_task = ClearMLTask(clearml_config=cfg.clearml)
 
     # Set up external repositories (clone and install dependencies)
     external_repositories = setup_repositories(cfg)
