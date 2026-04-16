@@ -4,10 +4,55 @@ import torch
 from torch.utils.data import ConcatDataset
 
 import logging
+from typing import Dict
 
 logger = logging.getLogger("seallh.projects.ddq.setup_dataloader")
 
-def setup_dataloader(cfg, created_datasets, split) -> torch.utils.data.DataLoader:
+
+def _build_dataloader(dataset, data_loader_cfg):
+    batch_size = min(data_loader_cfg.batch_size, len(dataset))
+    return torch.utils.data.DataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        num_workers=data_loader_cfg.num_workers,
+        pin_memory=data_loader_cfg.pin_memory,
+        collate_fn=dataset.collate_fn if hasattr(dataset, "collate_fn") else collate_fn,
+        shuffle=data_loader_cfg.shuffle,
+        prefetch_factor=data_loader_cfg.prefetch_factor,
+        persistent_workers=data_loader_cfg.persistent_workers
+    )
+
+
+def setup_dataloaders_per_dataset(cfg, created_datasets, split) -> Dict[str, torch.utils.data.DataLoader]:
+
+    if split in ['val', 'valid']:
+        split = 'validation'
+
+    if split == 'train':
+        data_loader_cfg = cfg.dataloader.train_args
+    elif split == 'validation':
+        data_loader_cfg = cfg.dataloader.val_args
+    elif split == 'test':
+        data_loader_cfg = cfg.dataloader.test_args
+    else:
+        raise RuntimeError(f"Unsupported split {split}")
+
+    dataloaders = {}
+    for dataset_name, dataset_dct in created_datasets.items():
+        if split not in dataset_dct:
+            logger.info(f"No {split} datasets found for dataset {dataset_name}")
+            continue
+        ds = dataset_dct[split]
+        dataloaders[dataset_name] = _build_dataloader(ds, data_loader_cfg)
+        logger.info(f"Created {split} dataloader for dataset '{dataset_name}' with {len(ds)} samples")
+
+    if not dataloaders:
+        raise RuntimeError(f"No datasets found for split {split}")
+
+    return dataloaders
+
+
+def setup_concat_dataloader(cfg, created_datasets, split) -> torch.utils.data.DataLoader:
 
     logger.info(f"Concatenating {split} datasets")
 
