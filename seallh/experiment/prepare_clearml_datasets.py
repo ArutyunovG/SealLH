@@ -57,14 +57,14 @@ def prepare_clearml_datasets(cfg: DictConfig):
                 adapter_args = adapter_cfg.get("args", {})
                 ds_obj = AdapterCls(dataset=ds_obj, **adapter_args)
 
-            transform_cfg = cfg.dataset[dataset_name].get("transform", None)
+            transform_cfg = inst.get("transform", None) or cfg.dataset[dataset_name].get("transform", None)
             if transform_cfg and transform_cfg.get("class", None):
                 TransformCls = import_class(transform_cfg["class"])
                 transform = TransformCls(**transform_cfg.get("args", {}))
                 ds_obj = MapDataset(ds_obj, func=transform)
                 logger.info(
-                    "Applied transform '%s' to split '%s' of dataset '%s'",
-                    transform_cfg["class"], split_name, dataset_name
+                    "Applied transform to split '%s' of dataset '%s':\n%s",
+                    split_name, dataset_name, transform
                 )
 
             created_datasets[dataset_name][split_name] = ds_obj

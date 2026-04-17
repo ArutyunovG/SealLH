@@ -1,7 +1,7 @@
 dataloader:
 
   train_args:
-    batch_size: 36
+    batch_size: 16
     num_workers: 8
     pin_memory: true
     shuffle: true
@@ -10,7 +10,7 @@ dataloader:
 
 
   val_args:
-    batch_size: 36
+    batch_size: 16
     num_workers: 8
     pin_memory: true
     shuffle: false

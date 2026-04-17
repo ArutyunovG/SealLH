@@ -28,7 +28,7 @@ phases:
 checkpoint_epoch_interval: 1
 val_epoch: 1
 
-input_shape: [480, 640]
+input_shape: [640, 640]
 
 norm_mean: [ 123.675, 116.28, 103.53 ]
 norm_std: [ 58.395, 57.12, 57.375 ]
