@@ -118,11 +118,13 @@ def _map_boxes_back(boxes_xyxy, scale, pad_left, pad_top, orig_h, orig_w):
 
 
 def visualize_exported_model(onnx_path, cfg, datasets_dict):
-    input_hw = tuple(cfg.input_shape)  # [480, 640]
-
     sess = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
-    in_name = sess.get_inputs()[0].name
+    in_info = sess.get_inputs()[0]
+    in_name = in_info.name
     out_names = [o.name for o in sess.get_outputs()]
+
+    in_shape = in_info.shape
+    input_hw = (int(in_shape[2]), int(in_shape[3]))
 
     # Get a validation image from the first dataset
     primary_key = list(datasets_dict.keys())[0]
