@@ -12,6 +12,7 @@ defaults:
   - evaluator
   - model
   - training
+  - testing
   - transform
   - export
   - inference
@@ -23,6 +24,7 @@ project_name: ddq
 # Experiment phases configuration for DDQ
 phases:
   training: true     # Train the DDQ detector
+  testing: true      # Evaluate the trained DDQ detector on the test split
   export: true       # Export model to ONNX
 
 checkpoint_epoch_interval: 1

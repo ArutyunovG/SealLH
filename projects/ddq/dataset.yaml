@@ -6,12 +6,9 @@ dataset:
     name: COCO
     dataset_id: null
     local_copy_dir: 'datasets/COCO'
-    transform: ${transform}
     modifiers:
-      - class: seallh.helpers.dataset.modifiers.COCOClassFilter
-        args:
-          class_names:
-            - car
+      - class: seallh.helpers.dataset.modifiers.COCOEmptyFilter
+        args: {}
     adapters:
       - class: seallh.helpers.dataset.adapters.BBoxFormatAdapter
         args:
@@ -19,12 +16,20 @@ dataset:
           target_format: xyxy
     instances:
       - split: train
+        transform: ${train_transform}
         args: 
           split: train
           images_dir: .
           annotation_file: instances_train2017.json
       - split: validation
+        transform: ${val_transform}
         args: 
+          split: val
+          images_dir: .
+          annotation_file: instances_val2017.json
+      - split: test
+        transform: ${val_transform}
+        args:
           split: val
           images_dir: .
           annotation_file: instances_val2017.json

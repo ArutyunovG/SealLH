@@ -53,6 +53,13 @@ train_transform:
           max_trials: 250
           p: 1.0
 
+      - class: seallh.helpers.transform.RandomZoomOut
+        args:
+          max_zoom_ratio: 2.0
+          fill: 0
+          resize_back: true
+          p: 1.0
+
       - class: seallh.helpers.transform.albumentations_transform.Rotate
         args:
           limit: [-15.0, 15.0]

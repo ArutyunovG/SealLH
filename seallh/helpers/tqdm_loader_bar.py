@@ -20,6 +20,8 @@ def tqdm_loader_bar(data_loader: torch.utils.data.DataLoader,
             desc = split + f'{epoch}/{max_epochs}'
         else:
             desc = split
+    elif mode == 'test':
+        desc = f'test'.ljust(10)
     else:
         raise ValueError(f"Unsupported mode: {mode}")
 

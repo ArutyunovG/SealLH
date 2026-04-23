@@ -1,4 +1,5 @@
 from projects.ddq.src.build_model import build_model
+from projects.ddq.src.evaluate import evaluate_on_dataloaders
 from projects.ddq.src.setup_dataloader import (setup_concat_dataloader, 
                                                setup_dataloaders_per_dataset)
 
@@ -158,79 +159,20 @@ def run_training(cfg, created_datasets, clearml_task):
             eval_model = ema_model.ema
             eval_model.eval()
 
-            with torch.no_grad():
-
-                for ds_name, val_dataloader in val_dataloaders.items():
-                    logger.info(f"Evaluating on dataset '{ds_name}'")
-
-                    evaluator.reset()
-                    val_loss_avg = MultioutputWrapper(base_metric=MeanMetric(),
-                                                        num_outputs=loss.num_val_losses).to(device)
-
-                    val_bar = tqdm_loader_bar(val_dataloader,
-                                              mode='val',
-                                              epoch=epoch + 1,
-                                              max_epochs=cfg.epochs)
-
-                    for image, targets in val_bar:
-                        image = image.to(device)
-
-                        raw_output = eval_model(image)
-
-                        loss_dict = loss(raw_output, targets, device)
-
-                        val_items = torch.stack(list(loss_dict.values())[:loss.num_val_losses])
-                        val_loss_avg.update(val_items.unsqueeze(0))
-
-                        outputs = eval_model.postprocess(raw_output)
-
-                        scores_list = []
-                        labels_list = []
-                        boxes_list = []
-                        for bboxes, labels in outputs:
-                            if bboxes is None or bboxes.numel() == 0:
-                                scores_list.append([])
-                                labels_list.append([])
-                                boxes_list.append([])
-                                continue
-                            scores_list.append(bboxes[:, -1].cpu())
-                            labels_list.append(labels.cpu())
-                            boxes_list.append(bboxes[:, :4].cpu())
-
-                        img_shapes = [list(image.shape[-2:])] * len(targets)
-
-                        bboxes_rows = []
-                        for i, t in enumerate(targets):
-                            for j, box in enumerate(t['bboxes']):
-                                x1, y1, x2, y2 = float(box[0]), float(box[1]), float(box[2]), float(box[3])
-                                row = [i, int(t['labels'][j].item()), 0,
-                                        x1, y1, x2, y2]
-                                bboxes_rows.append(row)
-
-                        if len(bboxes_rows) == 0:
-                            targets_for_eval = {'bboxes': torch.empty((0, 7), dtype=torch.float32)}
-                        else:
-                            targets_for_eval = {'bboxes': torch.tensor(bboxes_rows, dtype=torch.float32)}
-
-                        predictions = (scores_list, labels_list, boxes_list)
-
-                        evaluator.add_batch(predictions, targets_for_eval, img_shapes)
-
-                        avg_losses = {name: f'{value:.4f}'
-                                        for name, value in zip(list(loss_dict.keys())[:loss.num_val_losses], val_loss_avg.compute())}
-                        mem = get_allocated_gpu_mem_gb()
-                        val_bar.set_postfix({**avg_losses, 'gpu_mem': f'{mem:.2f}Gb', 'img_size': image.shape[2:]})
-
-                    metrics = evaluator.compute()
-                    assert 'bbox' in metrics, f"No bbox keys found in metrics for dataset '{ds_name}'"
-                    logger.info(f"Validation metrics for '{ds_name}': {metrics}")
-
-                    scalar_title = f"val/{ds_name}"
-                    val_avg_values = val_loss_avg.compute()
-                    for name, value in zip(list(loss_dict.keys())[:loss.num_val_losses], val_avg_values):
-                        clearml_task.report_scalar(scalar_title, name, iteration=epoch, value=value.item())
-                    for name, value in metrics['bbox'].items():
-                        clearml_task.report_scalar(scalar_title, name, iteration=epoch, value=float(value))
+            evaluate_on_dataloaders(
+                model=eval_model,
+                dataloaders=val_dataloaders,
+                loss=loss,
+                evaluator=evaluator,
+                device=device,
+                clearml_task=clearml_task,
+                cfg=cfg,
+                mode='val',
+                scalar_prefix='val',
+                iteration=epoch,
+                epoch=epoch + 1,
+                max_epochs=cfg.epochs,
+            )
 
         if cfg.get("checkpoint_epoch_interval", 0) > 0 and ((epoch + 1) % cfg.checkpoint_epoch_interval == 0):
             ckpt_dir = cfg.paths.checkpoint_dir
