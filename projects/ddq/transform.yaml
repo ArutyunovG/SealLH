@@ -45,8 +45,8 @@ train_transform:
 
       - class: seallh.helpers.transform.UniformBBoxSafeCrop
         args:
-          scale: [0.3, 1.0]
-          ratio: [0.5, 2.0]
+          scale: [0.99, 1.0]
+          ratio: [0.99, 1.01]
           metric: iof
           min_threshold: 0.8
           min_boxes_kept: 1
@@ -55,7 +55,7 @@ train_transform:
 
       - class: seallh.helpers.transform.RandomZoomOut
         args:
-          max_zoom_ratio: 2.0
+          max_zoom_ratio: 1.01
           fill: 0
           resize_back: true
           p: 1.0

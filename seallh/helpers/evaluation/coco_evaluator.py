@@ -1,5 +1,7 @@
 import logging
 
+import numpy as np
+
 try:
     import faster_coco_eval
     faster_coco_eval.init_as_pycocotools()
@@ -10,6 +12,28 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
 logger = logging.getLogger("seallh.helpers.evaluation.coco_evaluator")
+
+
+# Mapping of the 12 standard COCO metric names to (array, indexing_fn).
+# array is either 'precision' [T,R,K,A,M] or 'recall' [T,K,A,M]; the indexing
+# function receives the full array plus a category index k and returns the
+# slice whose mean (over non -1 values) is the per-class metric.
+_PER_CLASS_METRIC_SLICES = {
+    # AP family: areaRng index 0=all,1=small,2=medium,3=large; maxDet index 2=100
+    'AP':      ('precision', lambda a, k: a[:, :, k, 0, 2]),
+    'AP@0.5':  ('precision', lambda a, k: a[0, :, k, 0, 2]),
+    'AP@0.75': ('precision', lambda a, k: a[5, :, k, 0, 2]),
+    'AP@s':    ('precision', lambda a, k: a[:, :, k, 1, 2]),
+    'AP@m':    ('precision', lambda a, k: a[:, :, k, 2, 2]),
+    'AP@l':    ('precision', lambda a, k: a[:, :, k, 3, 2]),
+    # AR family
+    'AR@1':    ('recall',    lambda a, k: a[:, k, 0, 0]),
+    'AR@10':   ('recall',    lambda a, k: a[:, k, 0, 1]),
+    'AR@100':  ('recall',    lambda a, k: a[:, k, 0, 2]),
+    'AR@s':    ('recall',    lambda a, k: a[:, k, 1, 2]),
+    'AR@m':    ('recall',    lambda a, k: a[:, k, 2, 2]),
+    'AR@l':    ('recall',    lambda a, k: a[:, k, 3, 2]),
+}
 
 
 class COCOEvaluator:
@@ -164,5 +188,50 @@ class COCOEvaluator:
             coco_eval.accumulate()
             coco_eval.summarize()
             metrics[ann_type] = dict(zip(keys, coco_eval.stats))
+            metrics[f'{ann_type}_per_class'] = self._per_class_metrics(coco_eval, keys)
 
         return metrics
+
+    def _per_class_metrics(self, coco_eval, metric_keys):
+        """Extract per-category metrics from a summarized COCOeval instance.
+
+        Returns dict: {class_name: {metric_name: value}}. Values that are
+        undefined (COCO convention: -1) are reported as NaN.
+        """
+        eval_res = getattr(coco_eval, 'eval', None)
+        if not eval_res:
+            logger.warning("COCOeval has no 'eval' results; skipping per-class metrics")
+            return {}
+
+        precision = eval_res.get('precision')
+        recall = eval_res.get('recall')
+        if precision is None or recall is None:
+            logger.warning("COCOeval results missing precision/recall; skipping per-class metrics")
+            return {}
+
+        arrays = {'precision': precision, 'recall': recall}
+        cat_ids = list(coco_eval.params.catIds)
+
+        per_class = {}
+        for k, cat_id in enumerate(cat_ids):
+            # category_names is indexed by category id (see _create_coco_gt)
+            if 0 <= cat_id < len(self.category_names):
+                name = self.category_names[cat_id]
+            else:
+                name = str(cat_id)
+
+            class_metrics = {}
+            for metric in metric_keys:
+                slice_spec = _PER_CLASS_METRIC_SLICES.get(metric)
+                if slice_spec is None:
+                    # Unknown / custom metric: cannot derive per-class value
+                    continue
+                array_name, slicer = slice_spec
+                data = slicer(arrays[array_name], k)
+                valid = data[data > -1]
+                value = float(np.mean(valid)) if valid.size > 0 else float('nan')
+                class_metrics[metric] = value
+
+            per_class[name] = class_metrics
+
+        return per_class

@@ -114,3 +114,10 @@ def evaluate_on_dataloaders(model, dataloaders, loss, evaluator, device,
                     clearml_task.report_scalar(scalar_title, name, iteration=iteration, value=value.item())
             for name, value in metrics['bbox'].items():
                 clearml_task.report_scalar(scalar_title, name, iteration=iteration, value=float(value))
+
+            per_class = metrics.get('bbox_per_class', {})
+            for class_name, class_metrics in per_class.items():
+                per_class_title = f"{scalar_title}/per_class/{class_name}"
+                for metric_name, metric_value in class_metrics.items():
+                    clearml_task.report_scalar(per_class_title, metric_name,
+                                               iteration=iteration, value=float(metric_value))
