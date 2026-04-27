@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 
 from clearml import Task
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 
 logger = logging.getLogger("seallh._clearml.task")
@@ -79,6 +79,11 @@ class ClearMLTask:
             args = docker_config.get("args", [])
             base_env = docker_config.get("env", [])
             extra_env = docker_config.get("env_extras", [])
+            setup_bash_script = docker_config.get("setup_bash_script", None)
+
+            # OmegaConf containers are not always JSON/serialization friendly; coerce to plain types
+            if setup_bash_script is not None and OmegaConf.is_config(setup_bash_script):
+                setup_bash_script = OmegaConf.to_container(setup_bash_script, resolve=True)
             
             logger.info("Setting up Docker configuration: %s", image)
      
@@ -100,12 +105,31 @@ class ClearMLTask:
             # Set docker configuration using the correct API
             self.task.set_base_docker(
                 docker_image=image,
-                docker_arguments=combined_args if combined_args else None
+                docker_arguments=combined_args if combined_args else None,
+                docker_setup_bash_script=setup_bash_script,
             )
             
             logger.info("Docker configuration applied successfully")
         else:
             logger.warning("No docker configuration found in config")
+
+    def get_logger(self):
+        return self.task.get_logger()
+
+    def report_scalar(self, title, series, iteration, value):
+        self.task.get_logger().report_scalar(title, series, iteration=iteration, value=value)
+        self.task.get_logger().flush()
+
+    def report_image(self, title, series, image=None, iteration=0, local_path=None):
+        self.task.get_logger().report_image(title, series, image=image, iteration=iteration, local_path=local_path)
+        self.task.get_logger().flush(wait=True)
+
+    def report_matplotlib_figure(self, title, series, figure, iteration=0, report_interactive=True):
+        self.task.get_logger().report_matplotlib_figure(title, series, figure=figure, iteration=iteration, report_interactive=report_interactive)
+        self.task.get_logger().flush(wait=True)
+
+    def upload_artifact(self, name, artifact_object, **kwargs):
+        self.task.upload_artifact(name=name, artifact_object=artifact_object, **kwargs)
 
     # Convenience passthrough if needed later
     def __getattr__(self, item):

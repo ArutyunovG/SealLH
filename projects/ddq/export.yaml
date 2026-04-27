@@ -1,0 +1,12 @@
+# DDQ-specific export configuration
+paths:
+  checkpoint_path: ${paths.checkpoint_dir}/ddq_pytorch.pth
+
+export:
+  inputs:
+    - name: data
+      shape: [1, 3, 480, 640]
+      dtype: float32
+  outputs:
+    - scores
+    - bboxes

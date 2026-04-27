@@ -3,6 +3,7 @@ import logging
 
 from seallh.experiment.utils import import_class
 from seallh._clearml.dataset import ClearMLDataset
+from seallh.helpers.dataset.map import Map as MapDataset
 
 
 def prepare_clearml_datasets(cfg: DictConfig):
@@ -37,12 +38,35 @@ def prepare_clearml_datasets(cfg: DictConfig):
         DatasetCls = import_class(cls_path)
         created_datasets[dataset_name] = {}
 
+        adapters = cfg.dataset[dataset_name].get("adapters", [])
+
         for inst in instances:
             split_name = inst.get("split", "train")
             args = inst.get("args", {})
             
-            # Create dataset instance
             ds_obj = DatasetCls(root_dir=ds_path, **args)
+
+            modifiers = cfg.dataset[dataset_name].get("modifiers", [])
+            for modifier_cfg in modifiers:
+                ModifierCls = import_class(modifier_cfg["class"])
+                modifier_args = modifier_cfg.get("args", {})
+                ds_obj = ModifierCls(**modifier_args)(ds_obj)
+
+            for adapter_cfg in adapters:
+                AdapterCls = import_class(adapter_cfg["class"])
+                adapter_args = adapter_cfg.get("args", {})
+                ds_obj = AdapterCls(dataset=ds_obj, **adapter_args)
+
+            transform_cfg = inst.get("transform", None) or cfg.dataset[dataset_name].get("transform", None)
+            if transform_cfg and transform_cfg.get("class", None):
+                TransformCls = import_class(transform_cfg["class"])
+                transform = TransformCls(**transform_cfg.get("args", {}))
+                ds_obj = MapDataset(ds_obj, func=transform)
+                logger.info(
+                    "Applied transform to split '%s' of dataset '%s':\n%s",
+                    split_name, dataset_name, transform
+                )
+
             created_datasets[dataset_name][split_name] = ds_obj
             
             logger.info(

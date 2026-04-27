@@ -1,0 +1,38 @@
+# Add defaults.yaml to the search path
+hydra:
+  searchpath:
+    - pkg://conf
+
+# Root reusable config
+defaults:
+  - defaults  # Load generic defaults from conf/defaults.yaml
+  - clearml
+  - dataloader
+  - dataset
+  - evaluator
+  - model
+  - training
+  - testing
+  - transform
+  - export
+  - inference
+  - _self_
+
+# Project identifier (used in paths and logging)
+project_name: ddq
+
+# Experiment phases configuration for DDQ
+phases:
+  training: true     # Train the DDQ detector
+  testing: true      # Evaluate the trained DDQ detector on the test split
+  export: true       # Export model to ONNX
+
+checkpoint_epoch_interval: 1
+val_epoch: 1
+
+input_shape: [640, 640]
+
+norm_mean: [ 123.675, 116.28, 103.53 ]
+norm_std: [ 58.395, 57.12, 57.375 ]
+
+channels_last: true

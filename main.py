@@ -17,6 +17,11 @@ CONFIG_NAME = os.getenv("SEALLH_CONFIG_NAME", os.getenv("SEALLH_CONFIG_NAME", "m
 
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME, version_base=None)
 def main(cfg: DictConfig) -> None:
+
+    # Registers custom omegaconf resolvers
+    import seallh.helpers.omegaconf as _  # noqa: F401
+
+    # start experiment
     from seallh.experiment.experiment_main import experiment_main
     experiment_main(cfg)
 

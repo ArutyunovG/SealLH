@@ -1,4 +1,6 @@
 from omegaconf import DictConfig, OmegaConf
+import inspect
+import importlib
 import logging
 
 from seallh.experiment.setup_logging import setup_logging
@@ -10,10 +12,43 @@ from seallh.experiment.prepare_clearml_datasets import prepare_clearml_datasets
 from seallh._clearml.task import ClearMLTask
 
 
+def _run_phase(func_cfg_key, default_func, cfg, created_datasets, clearml_task, pl_loggers):
+    """Invoke a phase, optionally dispatching to a user-configured function by import path."""
+    logger = logging.getLogger("seallh.experiment")
+    func_path = cfg.get(func_cfg_key, None)
+    if not func_path:
+        default_func(cfg, created_datasets, clearml_task, pl_loggers)
+        return
+
+    assert isinstance(func_path, str), f"{func_cfg_key} must be a string with function import path"
+    try:
+        module_path, func_name = func_path.rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        func = getattr(module, func_name)
+        logger.info(f"Calling configured {func_cfg_key}: {func_path}")
+        num_params = len(inspect.signature(func).parameters)
+        all_func_params_num = 4
+        if num_params == all_func_params_num:
+            func(cfg, created_datasets, clearml_task, pl_loggers)
+        elif num_params == all_func_params_num - 1:
+            func(cfg, created_datasets, clearml_task)
+        else:
+            raise RuntimeError(
+                f"{func.__name__} must accept {all_func_params_num - 1} or {all_func_params_num} "
+                f"parameters, got {num_params}"
+            )
+    except Exception as e:
+        logger.exception(f"Failed to call {func_cfg_key} '{func_path}'; Error: {e}")
+        raise
+
+
 def experiment_main(cfg: DictConfig) -> None:
     """Experiment main, receives config from main.py"""
     logger = logging.getLogger("seallh.experiment")
     logger.info("Entered experiment_main")
+
+    clearml_task = ClearMLTask(clearml_config=cfg.clearml)
+
     pl_loggers = setup_logging(cfg)
 
     logger.info('Running experiment with config:')
@@ -28,9 +63,6 @@ def experiment_main(cfg: DictConfig) -> None:
         logger.warning(f"Could not fully resolve config for logging: {e}")
         raise
     logger.info('============================================================')
-   
-    # Initialize ClearML Task with the full config (clearml.yaml is merged into root)
-    clearml_task = ClearMLTask(clearml_config=cfg.clearml)
 
     # Set up external repositories (clone and install dependencies)
     external_repositories = setup_repositories(cfg)
@@ -48,28 +80,19 @@ def experiment_main(cfg: DictConfig) -> None:
     logger.info(f"  Testing: { '+' if phases['testing']  else '-'}")
     logger.info(f"  Export: {  '+' if phases['export']   else '-'}")
     
-    # Run training phase if enabled
-    if phases.get("training", False):
-        logger.info("=== TRAINING PHASE ===")
-        run_training(cfg, created_datasets, clearml_task, pl_loggers)
-        logger.info("Training phase completed!")
-    else:
-        logger.info("Training phase skipped")
-    
-    # Run testing phase if enabled
-    if phases.get("testing", False):
-        logger.info("=== TESTING PHASE ===")
-        run_testing(cfg, created_datasets, clearml_task, pl_loggers)
-        logger.info("Testing phase completed!")
-    else:
-        logger.info("Testing phase skipped")
-    
-    # Run export phase if enabled
-    if phases.get("export", False):
-        logger.info("=== EXPORT PHASE ===")
-        run_export(cfg, created_datasets, clearml_task, pl_loggers)
-        logger.info("Export phase completed!")
-    else:
-        logger.info("Export phase skipped")
+    phase_specs = [
+        ("training", "run_training_func", run_training),
+        ("testing",  "run_testing_func",  run_testing),
+        ("export",   "run_export_func",   run_export),
+    ]
+
+    for phase_name, func_cfg_key, default_func in phase_specs:
+        if not phases[phase_name]:
+            logger.info(f"{phase_name.capitalize()} phase skipped")
+            continue
+        logger.info(f"=== {phase_name.upper()} PHASE ===")
+        _run_phase(func_cfg_key, default_func,
+                   cfg, created_datasets, clearml_task, pl_loggers)
+        logger.info(f"{phase_name.capitalize()} phase completed!")
     
     logger.info("All experiment phases completed!")

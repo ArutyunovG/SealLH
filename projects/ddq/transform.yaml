@@ -1,0 +1,70 @@
+_common_prefix:
+  class: seallh.helpers.transform.PadToSquare
+  args:
+    position: center
+    fill: 0
+
+_common_tail:
+  class: seallh.helpers.transform.sequential.Sequential
+  args:
+    transforms:
+      - class: seallh.helpers.transform.albumentations_transform.Resize
+        args:
+          height: ${get_idx:${input_shape},0}
+          width: ${get_idx:${input_shape},1}
+          p: 1.0
+
+      - class: seallh.helpers.transform.albumentations_transform.ToTensor
+        args:
+          p: 1.0
+
+      - class: seallh.helpers.transform.AlbumentationTargetsToTensor
+        args: {}
+
+val_transform:
+  class: seallh.helpers.transform.sequential.Sequential
+  args:
+    transforms:
+      - ${_common_prefix}
+      - ${_common_tail}
+
+train_transform:
+  class: seallh.helpers.transform.sequential.Sequential
+  args:
+    transforms:
+
+      - ${_common_prefix}
+
+      - class: seallh.helpers.transform.albumentations_transform.HorizontalFlip
+        args:
+          p: 0.5
+
+      - class: seallh.helpers.transform.albumentations_transform.RandomBrightnessContrast
+        args:
+          p: 1.0
+
+      - class: seallh.helpers.transform.UniformBBoxSafeCrop
+        args:
+          scale: [0.99, 1.0]
+          ratio: [0.99, 1.01]
+          metric: iof
+          min_threshold: 0.8
+          min_boxes_kept: 1
+          max_trials: 250
+          p: 1.0
+
+      - class: seallh.helpers.transform.RandomZoomOut
+        args:
+          max_zoom_ratio: 1.01
+          fill: 0
+          resize_back: true
+          p: 1.0
+
+      - class: seallh.helpers.transform.albumentations_transform.Rotate
+        args:
+          limit: [-15.0, 15.0]
+          border_mode: 0
+          fill: 0
+          p: 1.0
+
+      - ${_common_tail}

@@ -2,8 +2,8 @@ __pycache__
 .vscode
 build
 outputs
-dataset
-datasets
+/dataset
+/datasets
 runs
 lightning_logs
 external_repos

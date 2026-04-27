@@ -1,0 +1,40 @@
+# Model configuration for DDQ
+model:
+  backbone: 
+    type: "timm"
+    args:
+      model_name: "repvit_m1_0.dist_450e_in1k"
+      pretrained: true
+      features_only: true
+      out_indices: [0, 1, 2, 3]
+      pretrained_filter_fn: null
+
+  neck:
+    type: "RepFPN"
+    args:
+      in_channels: [56, 112, 224, 448]
+      out_channels: 128
+      hidden_channels: 128
+
+  head:
+    type: "DDQFCNHead"
+    args:
+      num_classes: 80
+      in_channels: 128
+      feat_channels: 128
+      stacked_convs: 2
+      strides: [8, 16, 32]
+      shuffle_channels: 32
+      bbox_clamp: 4.0
+
+  detector: projects.ddq.src.model.DDQFCN
+  detector_args:
+    pretrained: true
+
+
+ema:
+  class: projects.ddq.src.ema.ModelEMA
+  args:
+    decay: 0.9999
+    updates: 0
+

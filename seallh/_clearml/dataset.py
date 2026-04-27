@@ -29,6 +29,7 @@ class ClearMLDataset:
         self.config = config
         self.local_copy_dir = config.get("local_copy_dir")
         self.dataset_info = {}
+        self._resolved_dirs: Dict[str, str] = {}
         
         logger.info("Initializing ClearMLDataset manager")
         self._load_datasets()
@@ -44,6 +45,9 @@ class ClearMLDataset:
         """
         Load a single dataset from its specification.
         
+        If local_copy_dir already exists, uses it directly.
+        Otherwise, downloads from ClearML using project/name/dataset_id.
+        
         Args:
             dataset_name: Name to use for the dataset (key in dataset_paths dict)
             dataset_spec: Dataset specification containing id/name/project/tags
@@ -51,23 +55,30 @@ class ClearMLDataset:
         try:
             logger.info("Loading dataset: %s", dataset_name)
             
-            # Extract parameters from dataset specification
-            dataset_id = dataset_spec.get("dataset_id")
-            name = dataset_spec.get("name") 
-            project = dataset_spec.get("project")
-            tags = dataset_spec.get("tags", [])
-            
             # Use dataset-specific local_copy_dir if provided, otherwise use global one
             local_copy_dir = dataset_spec.get("local_copy_dir") or "dataset"
 
-            # Load the dataset using the existing get_local_dataset function
-            local_path = self.get_local_dataset(
-                local_copy_dir=local_copy_dir,
-                dataset_id=dataset_id,
-                name=name,
-                project=project,
-                tags=tags
-            )
+            if local_copy_dir in self._resolved_dirs:
+                logger.info(
+                    "Reusing already resolved local copy for '%s' at '%s'",
+                    dataset_name, local_copy_dir
+                )
+                local_path = self._resolved_dirs[local_copy_dir]
+            else:
+                # Download from ClearML (handles hash verification of existing copies)
+                dataset_id = dataset_spec.get("dataset_id")
+                name = dataset_spec.get("name") 
+                project = dataset_spec.get("project")
+                tags = dataset_spec.get("tags", [])
+
+                local_path = self.get_local_dataset(
+                    local_copy_dir=local_copy_dir,
+                    dataset_id=dataset_id,
+                    name=name,
+                    project=project,
+                    tags=tags
+                )
+                self._resolved_dirs[local_copy_dir] = local_path
             
             self.dataset_info[dataset_name] = {
                 "path": local_path,
@@ -121,6 +132,11 @@ class ClearMLDataset:
             label = f"name={name}, project={project}, tags={list(tags or [])}"
 
         logger.info(f"Resolving ClearML Dataset ({label})")
+
+        if local_copy_dir is None:
+            local_copy_dir = ds.get_local_copy()
+            logger.info(f"Dataset ({label}) loaded to ClearML cache: {local_copy_dir}")
+            return local_copy_dir
 
         if os.path.exists(local_copy_dir) and os.path.isdir(local_copy_dir):
             if ds.verify_dataset_hash(local_copy_dir):

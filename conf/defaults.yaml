@@ -130,7 +130,7 @@ clearml:
 
   # Docker configuration for remote execution (generic ML stack)
   docker:
-    image: ${oc.env:SEALLH_DOCKER_IMAGE,${oc.env:SEALLH_DOCKER_IMAGE,"nvidia/cuda:12.4.1-cudnn9-runtime-ubuntu22.04"}}
+    image: ${oc.env:SEALLH_DOCKER_IMAGE,${oc.env:SEALLH_DOCKER_IMAGE,"nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04"}}
     args:
       - --gpus
       - all
@@ -139,6 +139,11 @@ clearml:
     env:
       - PYTHONUNBUFFERED=1
       - TZ=${oc.env:TZ,UTC}
+
+    # Optional: commands executed inside the docker before the task starts.
+    # Passed to clearml.Task.set_base_docker(docker_setup_bash_script=...).
+    # Can be a list of commands or a multi-line bash string.
+    setup_bash_script: null
     
     # Project-specific environment variables (empty by default, override in projects)
     env_extras: []
@@ -158,14 +163,19 @@ clearml:
       - onnxsim
       - onnxscript
       - pillow         # For image handling in ClearML
+      - albumentations
 
     # Project-specific pip requirements (empty by default, override in projects)
     pip_extras: []
 
 # Export configuration (for model conversion and deployment)
 export:
-  # Input shape for model export (batch_size is typically dynamic, so exclude it)
-  input_shape: [3, 224, 224]  # Default: RGB images 224x224 (CHW format)
+  inputs:
+    - name: input
+      shape: [1, 3, 224, 224]
+      dtype: float32
+  outputs:
+    - output
   
   # ONNX-specific settings
   onnx:
@@ -174,9 +184,13 @@ export:
     export_params: true
     simplify: true  # Apply ONNX model simplification using onnxsim
 
+# Inference configuration (for post-processing and visualization)
+inference: {}
+
 # Output paths structure (for convenience - not used in interpolations above)
 paths:
   output_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}
   checkpoint_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/checkpoints
+  checkpoint_path: ${paths.checkpoint_dir}/best.ckpt
   log_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/logs
   export_dir: ${oc.env:SEALLH_OUT,${oc.env:SEALLH_OUT,./runs}}/${project_name}/exports

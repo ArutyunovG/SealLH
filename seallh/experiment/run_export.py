@@ -1,11 +1,11 @@
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import logging
 import torch
 import os
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 from seallh.experiment.model_loading import get_model_loader
-
 
 def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
     """Run model export/conversion to various formats (ONNX, TorchScript, etc.)."""
@@ -14,48 +14,47 @@ def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
     logger.info("Starting export phase...")
     
     # Set up paths
-    checkpoint_dir = cfg.paths.checkpoint_dir
+    checkpoint_path = cfg.paths.checkpoint_path
     export_dir = cfg.paths.export_dir
     
     # Create export directory
     Path(export_dir).mkdir(parents=True, exist_ok=True)
     
-    # Get checkpoint filename from ModelCheckpoint callback config
-    checkpoint_filename = "best"  # default fallback
-    for callback_cfg in cfg.trainer.callbacks:
-        if callback_cfg.get("class") == "pytorch_lightning.callbacks.ModelCheckpoint":
-            checkpoint_filename = callback_cfg.get("args", {}).get("filename", "best")
-            break
-    
-    best_checkpoint_path = os.path.join(checkpoint_dir, f"{checkpoint_filename}.ckpt")
-    
     # Check if checkpoint exists
-    if not os.path.exists(best_checkpoint_path):
-        logger.warning(f"Best checkpoint not found at: {best_checkpoint_path}")
+    if not os.path.exists(checkpoint_path):
+        logger.warning(f"Checkpoint not found at: {checkpoint_path}")
         logger.info("Export phase skipped - no trained model checkpoint available")
         return
     
     # Load model using configurable model loader
     model_loader = get_model_loader(cfg)
-    model = model_loader(best_checkpoint_path, cfg)
+    model = model_loader(checkpoint_path, cfg)
     
-    # Determine device (use CPU for export to avoid device issues)
-    device = torch.device("cpu")
-    model = model.to(device)
+    # Determine device
+    device_str = str(cfg.export.get("device", "cpu"))
+    device = torch.device(device_str)
+    model = model.to(device).eval()
     
-    # Get input shape from config
-    input_shape = cfg.export.input_shape
-    logger.info(f"Using input shape for export: {input_shape}")
+    # Parse inputs/outputs from config
+    input_names, input_shapes, input_dtypes = _parse_inputs(cfg.export)
+    output_names = _parse_outputs(cfg.export)
+    dynamic_axes = _parse_dynamic_axes(cfg.export)
+
+    logger.info(f"Export inputs: {dict(zip(input_names, input_shapes))}")
+    logger.info(f"Export outputs: {output_names}")
     
-    # Create dummy input tensor (batch size = 1) on the same device as model
-    dummy_input = torch.randn(1, *input_shape, device=device)
+    # Create dummy inputs
+    dummy_inputs = [torch.randn(s, dtype=dt, device=device) for s, dt in zip(input_shapes, input_dtypes)]
+    dummy_input = tuple(dummy_inputs) if len(dummy_inputs) > 1 else dummy_inputs[0]
     
     # Export to ONNX format
-    onnx_path = _export_onnx(model, dummy_input, export_dir, cfg, logger)
+    onnx_path = _export_onnx(model, dummy_input, export_dir, cfg, logger,
+                             input_names=input_names, output_names=output_names,
+                             dynamic_axes=dynamic_axes)
     
     # Upload to ClearML artifacts if export was successful
     if onnx_path and os.path.exists(onnx_path):
-        _upload_to_clearml(onnx_path, clearml_task, cfg, logger)
+        clearml_task.upload_artifact(name=f"{cfg.project_name}_onnx_model", artifact_object=onnx_path)
         
         # Run visualization if available
         try:
@@ -64,14 +63,15 @@ def run_export(cfg: DictConfig, datasets_dict, clearml_task, pl_loggers=None):
             raise RuntimeError(f"Visualization failed: {e}")
         
         if viz_path and os.path.exists(viz_path):
-            _upload_visualization_to_clearml(viz_path, clearml_task, cfg, logger)
+            _report_visualization(viz_path, clearml_task, cfg, pl_loggers, logger)
     else:
         raise RuntimeError("ONNX export failed, skipping ClearML upload")
     
     logger.info(f"Export completed! Files saved to: {export_dir}")
 
 
-def _export_onnx(model, dummy_input, export_dir, cfg, logger):
+def _export_onnx(model, dummy_input, export_dir, cfg, logger,
+                 input_names, output_names, dynamic_axes=None):
     """Export model to ONNX format."""
     try:
         import torch.onnx
@@ -79,18 +79,23 @@ def _export_onnx(model, dummy_input, export_dir, cfg, logger):
         onnx_path = os.path.join(export_dir, f"{cfg.project_name}.onnx")
         logger.info(f"Exporting to ONNX: {onnx_path}")
         
-        # Get ONNX export settings
         onnx_cfg = cfg.export.onnx
         
+        export_kwargs = dict(
+            export_params=onnx_cfg.get("export_params", True),
+            opset_version=onnx_cfg.get("opset_version", 11),
+            do_constant_folding=onnx_cfg.get("do_constant_folding", True),
+            input_names=input_names,
+            output_names=output_names,
+        )
+        if dynamic_axes:
+            export_kwargs["dynamic_axes"] = dynamic_axes
+
         torch.onnx.export(
             model,
             dummy_input,
             onnx_path,
-            export_params=onnx_cfg.get("export_params", True),
-            opset_version=onnx_cfg.get("opset_version", 11),
-            do_constant_folding=onnx_cfg.get("do_constant_folding", True),
-            input_names=["input"],
-            output_names=["output"]
+            **export_kwargs,
         )
         
         logger.info(f"ONNX export successful: {onnx_path}")
@@ -169,33 +174,6 @@ def _simplify_onnx_model(onnx_path, logger):
         return onnx_path
 
 
-def _upload_to_clearml(onnx_path, clearml_task, cfg, logger):
-    """Upload exported ONNX model to ClearML artifacts."""
-    try:
-        if clearml_task and clearml_task.task:
-            logger.info(f"Uploading ONNX model to ClearML artifacts: {onnx_path}")
-            
-            # Upload the ONNX file as an artifact
-            artifact_name = f"{cfg.project_name}_model"
-            clearml_task.task.upload_artifact(
-                name=artifact_name,
-                artifact_object=onnx_path,
-                metadata={
-                    "format": "onnx",
-                    "input_shape": cfg.export.input_shape,
-                    "opset_version": cfg.export.onnx.get("opset_version", 11),
-                    "project": cfg.project_name
-                }
-            )
-            
-            logger.info(f"ONNX model uploaded to ClearML as artifact: {artifact_name}")
-        else:
-            logger.warning("ClearML task not available - skipping artifact upload")
-            
-    except Exception as e:
-        logger.error(f"Failed to upload ONNX model to ClearML: {e}")
-
-
 def _run_visualization(onnx_path, cfg, datasets_dict, logger):
     """Run project-specific visualization of the exported ONNX model."""
     try:
@@ -224,53 +202,83 @@ def _run_visualization(onnx_path, cfg, datasets_dict, logger):
         raise
 
 
-def _upload_visualization_to_clearml(viz_path, clearml_task, cfg, logger):
-    """Upload visualization image to ClearML artifacts."""
+def _report_visualization(viz_path, clearml_task, cfg, pl_loggers, logger):
+    """Report visualization image to ClearML."""
+    from PIL import Image
+    import numpy as np
+
+    img = Image.open(viz_path)
+
+    if img.mode == 'RGBA':
+        background = Image.new('RGB', img.size, (255, 255, 255))
+        background.paste(img, mask=img.split()[-1])
+        img = background
+    elif img.mode != 'RGB':
+        img = img.convert('RGB')
+
+    img_array = np.array(img)
+
     try:
-        if clearml_task and clearml_task.task:
-            logger.info(f"Uploading visualization to ClearML: {viz_path}")
-            
-            # Upload as artifact
-            artifact_name = f"{cfg.project_name}_visualization"
-            clearml_task.task.upload_artifact(
-                name=artifact_name,
-                artifact_object=viz_path,
-                metadata={
-                    "type": "visualization",
-                    "format": "png",
-                    "description": "ONNX model prediction visualization",
-                    "project": cfg.project_name
-                }
-            )
-            
-            # Also log as image for easy viewing in ClearML UI
-            from PIL import Image
-            import numpy as np
-            
-            img = Image.open(viz_path)
-            
-            # Convert RGBA to RGB if necessary to avoid format issues
-            if img.mode == 'RGBA':
-                # Create a white background and paste the image on it
-                background = Image.new('RGB', img.size, (255, 255, 255))
-                background.paste(img, mask=img.split()[-1])  # Use alpha channel as mask
-                img = background
-            elif img.mode != 'RGB':
-                # Convert any other mode to RGB
-                img = img.convert('RGB')
-            
-            img_array = np.array(img)
-            
-            clearml_task.task.get_logger().report_image(
-                title="ONNX Model Predictions",
-                series="Exported Model Visualization",
-                image=img_array,
-                iteration=0
-            )
-            
-            logger.info(f"Visualization uploaded to ClearML as artifact: {artifact_name}")
-        else:
-            logger.warning("ClearML task not available - skipping visualization upload")
-            
+        clearml_task.upload_artifact(
+            name=f"{cfg.project_name}_visualization",
+            artifact_object=viz_path,
+        )
+        clearml_task.report_image(
+            title="ONNX Model Predictions",
+            series="Exported Model Visualization",
+            image=img_array,
+        )
+        logger.info("Visualization uploaded to ClearML")
     except Exception as e:
         logger.error(f"Failed to upload visualization to ClearML: {e}")
+
+
+def _parse_inputs(export_cfg) -> Tuple[List[str], List[Tuple[int, ...]], List[torch.dtype]]:
+    """Parse export.inputs config:
+        export:
+          inputs:
+            - name: images
+              shape: [1, 3, 640, 640]
+              dtype: float32
+    """
+
+    _DTYPE_MAP = {
+        "float32": torch.float32, "fp32": torch.float32,
+        "float16": torch.float16, "half": torch.float16, "fp16": torch.float16,
+        "bfloat16": torch.bfloat16, "bf16": torch.bfloat16,
+        "int64": torch.int64, "long": torch.int64,
+        "int32": torch.int32, "int": torch.int32,
+        "int8": torch.int8,
+        "uint8": torch.uint8,
+        "bool": torch.bool,
+    }
+
+    inputs = export_cfg.inputs
+    names, shapes, dtypes = [], [], []
+    for item in inputs:
+        names.append(str(item["name"]))
+        shapes.append(tuple(item["shape"]))
+        dtypes.append(_DTYPE_MAP.get(str(item.get("dtype", "float32")), torch.float32))
+    return names, shapes, dtypes
+
+
+def _parse_outputs(export_cfg) -> List[str]:
+    """Parse export.outputs list."""
+    return list(export_cfg.outputs)
+
+
+def _parse_dynamic_axes(export_cfg) -> dict:
+    """Parse dynamic_axes from config. Returns empty dict if not specified."""
+    if "dynamic_axes" not in export_cfg:
+        return {}
+    dyn = export_cfg.dynamic_axes
+    if isinstance(dyn, bool):
+        return {} if not dyn else {}
+    result = {}
+    for name, axes in dyn.items():
+        result[str(name)] = {int(k): str(v) for k, v in axes.items()}
+    return result
+
+
+
+
